@@ -12,7 +12,7 @@ def model_test(env,agent,num_episodes,num_subtasks,cycles=10):
             print('sub_loc:\n{}'.format(state[0][0,0,:,-num_subtasks:]))
             action = agent.take_action(state)
             print('action0:{}\naction1:{}'.format(action[0],action[1]))
-            next_state, reward, done, _ = env.step(action)
+            next_state, reward, done,*_ = env.step(action)
             state = next_state
             episode_return += reward
         return_list.append(episode_return)

@@ -34,7 +34,7 @@ def train_on_policy_agent(env, agent, num_episodes,max_steps):
     state = env.reset()
     for i_episode in range(num_episodes):
         episode_return = 0
-        transition_dict = {'states': [], 'actions': [], 'next_states': [], 'rewards': [], 'dones': []}
+        transition_dict = {'states': [], 'actions': [], 'next_states': [], 'rewards': [], 'dones': [], 'overs': []}
         if done:
             state = env.reset()
             done = False
@@ -45,13 +45,14 @@ def train_on_policy_agent(env, agent, num_episodes,max_steps):
             action = agent.take_action(state)
             #print_state(env.env_agent)
             #print('action: \n',action)
-            next_state, reward, done, _ = env.step(action)
+            next_state, reward, done, over, _ = env.step(action)
             #print('reward: ',reward)
             transition_dict['states'].append(state)
             transition_dict['actions'].append(action)
             transition_dict['next_states'].append(next_state)
             transition_dict['rewards'].append(reward)
             transition_dict['dones'].append(done)
+            transition_dict['overs'].append(over)
             state = next_state
             episode_return += reward
         return_list.append(episode_return)

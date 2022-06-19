@@ -194,7 +194,7 @@ class ACTWOSTEPS(ActorCritic):
         return F(0)
     
 class ActorCritic_Double:
-    def __init__(self,input_shape:tuple,num_subtasks,lr,weights,gamma,device,clip_grad,beta,n_steps):
+    def __init__(self,input_shape:tuple,num_subtasks,lr,weights,gamma,device,clip_grad,beta,n_steps,mode,labda):
         self.agent=AGENT_NET.DoubleNet(input_shape,num_subtasks).to(device)
         #self.agent_optimizer=torch.optim.Adam(self.agent.parameters(),lr=lr,eps=1e-3)
         self.agent_optimizer=torch.optim.SGD(self.agent.parameters(),lr=lr,momentum=0.9)
@@ -207,6 +207,9 @@ class ActorCritic_Double:
         self.weights=weights
         self.n_steps=n_steps
         self.device=device
+        self.mode=mode
+        if mode=='gce':
+            self.labda=labda
         self.cri_loss=[]
         self.act_loss=[]
         self.eposub_loss=[]
@@ -258,13 +261,19 @@ class ActorCritic_Double:
             i[:]=(i-i.mean())/i.std()
         for i in next_states[1]:
             i[:]=(i-i.mean())/i.std()
-        dones=F(transition_dict['dones']).view(-1,1)
+        overs=F(transition_dict['overs']).view(-1,1)
         # 时序差分目标
         #td_target=rewards+self.gamma*self.agent(next_states)[1]*(1-dones)
-        td_target=self.cal_nsteps(rewards,next_states,dones)
-        td_delta=td_target-self.agent(states)[1]  # 时序差分误差
+        if self.mode=='n_steps':
+            F_td=self.cal_nsteps
+        elif self.mode=='n_steps_all':
+            F_td=self.cal_nsteps_all
+        else:
+            F_td=self.cal_gce
+        td_delta=F_td(rewards,states,next_states,overs)  # 时序差分误差
+        td_target=td_delta+self.agent(states)[1]
         self.ac_loss.append(td_delta.mean().item())
-        probs,_=self.agent(states)
+        probs=self.agent(states)[0]
         s=0
         #probs=(probs[0]+1e-10,probs[1]+1e-10)
         for prob in probs[0]:
@@ -302,7 +311,7 @@ class ActorCritic_Double:
         probs*=G(0)
         return probs
 
-    def cal_nsteps(self,rewards,next_states,dones):
+    def cal_nsteps(self,rewards,states,next_states,overs):
         r=rewards
         rewards=torch.cat((rewards,torch.zeros(self.n_steps-1).to(self.device).view(-1,1)),dim=0)
         F=lambda x:torch.cat((x,x[[-1]]),dim=0)
@@ -311,9 +320,24 @@ class ActorCritic_Double:
         for _ in range(self.n_steps-1):
             last_state_0=F(last_state_0)
             last_state_1=F(last_state_1)
-            dones=F(dones)
-        var=(self.gamma**self.n_steps)*self.agent((last_state_0,last_state_1))[1][self.n_steps-1:]*(1-dones[self.n_steps-1:])
+            overs=F(overs)
+        var=(self.gamma**self.n_steps)*self.agent((last_state_0,last_state_1))[1][self.n_steps-1:]*(1-overs[self.n_steps-1:])
         for i in range(1,self.n_steps):
             r+=(self.gamma**i)*rewards[i:len(r)+i]
-        return var+r
-        
+        return var+r-self.agent(states)[1]
+    
+    def cal_(self,r,init,discount):
+        ret=r.clone()
+        l_r=len(r)-1
+        for i,t in enumerate(reversed(r)):
+            init=init*discount+t
+            ret[l_r-i]=init
+        return ret
+    
+    def cal_nsteps_all(self,rewards,states,next_states,overs):
+        init=self.agent((next_states[0][[-1]],next_states[1][[-1]]))[1]*(1-overs[-1])
+        return self.cal_(rewards,init,self.gamma)-self.agent(states)[1]
+    
+    def cal_gce(self,rewards,states,next_states,overs):
+        r=rewards+self.gamma*self.agent(next_states)[1]*(1-overs)-self.agent(states)[1]
+        return self.cal_(r,0,self.gamma*self.labda)

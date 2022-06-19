@@ -43,6 +43,7 @@ class ADENVBASE:
 
     def reset_pro(self):
         np.random.seed(1)
+        self.over=0
         self.done=0
         self.time=0
         self.base_sequence=0
@@ -160,6 +161,7 @@ class ADENVBASE:
                     processor=action[0,j]
                     if not self.judge(processor,j):
                         self.done=1
+                        self.over=1
                         print('wrong')
                         time_wait[j]=np.inf
                         return time_execution,time_wait,time_return
@@ -190,6 +192,7 @@ class ADENVBASE:
                     time_total[j]=time_execution[j]+time_wait[j]+time_return[j]
                     if time_total[j]==np.inf:
                         self.done=1
+                        self.over=1
                         print("time is too long")
                         return time_execution,time_wait,time_return
                     
@@ -246,7 +249,7 @@ class ADENVBASE:
             reward=self.cal_reward(time_execution,time_wait,time_return,action,self.weights)
         else:
             reward=self.test(time_execution,time_wait,time_return)
-        return self.packet_return(),reward,self.done,None
+        return self.packet_return(),reward,self.done,self.over,None
     
     def judge(self,processor,subtask):
         #processor不能删，子类调用
