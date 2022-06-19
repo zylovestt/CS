@@ -255,7 +255,7 @@ class ActorCritic_Double:
         actions=tuple(F(np.vstack([x[i] for x in transition_dict['actions']])).type(torch.int64) for i in range(len(transition_dict['actions'][0])))
 
         rewards=F(transition_dict['rewards']).view(-1,1)
-        next_states=tuple(F(np.concatenate([x[i] for x in transition_dict['states']],0)) for i in range(len(transition_dict['states'][0])))
+        next_states=tuple(F(np.concatenate([x[i] for x in transition_dict['next_states']],0)) for i in range(len(transition_dict['states'][0])))
         u=next_states[0][:,:,:,:-self.num_subtasks]
         for i in u:
             i[:]=(i-i.mean())/i.std()
@@ -268,7 +268,7 @@ class ActorCritic_Double:
             F_td=self.cal_nsteps
         elif self.mode=='n_steps_all':
             F_td=self.cal_nsteps_all
-        else:
+        elif self.mode=='gce':
             F_td=self.cal_gce
         td_delta=F_td(rewards,states,next_states,overs)  # 时序差分误差
         td_target=td_delta+self.agent(states)[1]
