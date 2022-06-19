@@ -42,7 +42,7 @@ class ADENVBASE:
         self.train=True
 
     def reset_pro(self):
-        np.random.seed(1)
+        #np.random.seed(1)
         self.over=0
         self.done=0
         self.time=0
@@ -215,7 +215,7 @@ class ADENVBASE:
             self.base_sequence+=1
             self.processor_location[self.num_roadsideunits:]-=self.basestation_cover
             #self.processor_location[:self.num_roadsideunits]=self.config['plr'](self.num_roadsideunits)
-            if (self.base_sequence)==10:
+            if (self.base_sequence)==1:
                 self.done=1
                 print('success')
         
@@ -296,5 +296,5 @@ class ENVONE(ADENVBASE):
     
     def test(self,time_execution,time_wait,time_return):
         a=max(time_execution+time_wait+time_return)
-        total_time=self.time_base*1000 if a==np.inf else a
+        total_time=self.time_base*1000000 if a==np.inf else a
         return total_time

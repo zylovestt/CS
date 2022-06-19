@@ -256,7 +256,7 @@ class ActorCritic_Double:
 
         rewards=F(transition_dict['rewards']).view(-1,1)
         next_states=tuple(F(np.concatenate([x[i] for x in transition_dict['states']],0)) for i in range(len(transition_dict['states'][0])))
-        u=states[0][:,:,:,:-self.num_subtasks]
+        u=next_states[0][:,:,:,:-self.num_subtasks]
         for i in u:
             i[:]=(i-i.mean())/i.std()
         for i in next_states[1]:
