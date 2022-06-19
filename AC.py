@@ -206,6 +206,12 @@ class ActorCritic_Double:
         self.weights=weights
         self.n_steps=n_steps
         self.device=device
+        self.cri_loss=[]
+        self.act_loss=[]
+        self.eposub_loss=[]
+        self.epopri_loss=[]
+        self.agent_loss=[]
+        self.ac_loss=[]
     
     def take_action(self,state):
         F=lambda x:torch.tensor(x,dtype=torch.float).to(self.device)
@@ -256,6 +262,7 @@ class ActorCritic_Double:
         #td_target=rewards+self.gamma*self.agent(next_states)[1]*(1-dones)
         td_target=self.cal_nsteps(rewards,next_states,dones)
         td_delta=td_target-self.agent(states)[1]  # 时序差分误差
+        self.ac_loss.append(td_delta.mean().item())
         probs,_=self.agent(states)
         s=0
         #probs=(probs[0]+1e-10,probs[1]+1e-10)
@@ -264,12 +271,19 @@ class ActorCritic_Double:
         t=0
         for prob in probs[1]:
             t+=(prob*prob.log()).sum(dim=1)
+        self.eposub_loss.append(s.mean().item())
+        self.epopri_loss.append(t.mean().item())
         epo_loss=self.beta*(s.mean()+t.mean())
         log_probs=torch.log(self.calculate_probs(probs,actions))
         actor_loss=torch.mean(-log_probs * td_delta.detach())
+        self.act_loss.append(actor_loss.item())
         # 均方误差损失函数
         critic_loss=torch.mean(FU.mse_loss(self.agent(states)[1], td_target.detach()))
+        self.cri_loss.append(critic_loss.item())
         agent_loss=epo_loss+actor_loss+self.weights*critic_loss
+        self.agent_loss.append(agent_loss.item())
+        if torch.isnan(agent_loss)>0:
+            print("here!")
         self.agent_optimizer.zero_grad()
         agent_loss.backward()
         nn_utils.clip_grad_norm_(self.agent.parameters(),self.clip_grad)

@@ -133,7 +133,7 @@ class DoubleNet(nn.Module):
         '''l1=[F.softmax(layer(torch.cat((out_fc,x[0][:,:,:,-self.num_subtasks+i].view(-1,self.num_processors)),1))
             +(1/(x[0][:,:,:,-self.num_subtasks+i].view(-1,self.num_processors)-1e-14)-1),dim=1)
             for layer,i in zip(self.policy_layer,range(self.num_subtasks))]'''
-        l2=[F.softmax(layer(out_fc),dim=1) for layer in self.prior_layer]
+        l2=[F.softmax(layer(out_fc),dim=1)+1e-14 for layer in self.prior_layer]
         critic=self.critic_out(out_fc)
         return (l1,l2),critic
     

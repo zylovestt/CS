@@ -5,6 +5,7 @@ import torch
 import rl_utils
 from PRINT import Logger
 from TEST import model_test
+from matplotlib import pyplot as plt
 from RANDOMAGENT import RANDOMAGENT_onehot
 from copy import deepcopy
 
@@ -12,17 +13,17 @@ from copy import deepcopy
 logger = Logger('AC.log')
 np.random.seed(1)
 torch.manual_seed(0)
-lr =1* 1e-4
+lr =1* 1e-8
 #critic_lr = 1e-1
-num_episodes = 500
-gamma = 0.98
+num_episodes = 2000
+gamma = 0.99
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 random_uniform_int=lambda low,high:(lambda x:np.random.randint(low,high,x))
 random_uniform_float=lambda low,high:(lambda x:np.random.uniform(low,high,x))
 random_loc=lambda low,high:(lambda x:np.random.choice(np.arange(low,high),x,replace=False).astype('float'))
 unit_loc=lambda s,e:(lambda x:np.linspace(s,e,x+1)[:-1])
-num_cars=4
+num_cars=3
 num_units=1
 bs_cover=1000
 '''config={'source':random_uniform_int(num_units,num_cars+num_units),
@@ -64,19 +65,19 @@ config={'source':random_uniform_int(num_units,num_cars+num_units),
         'whitenoise':1,
         'alpha':2}
 
-num_subtasks=5
+num_subtasks=3
 time_base=20
 weights=np.ones(8)
-weights[0]=10
+weights[0]=0.1
 weights[1]=0
 env=ENV.ENVONE(time_base,weights,num_processors=num_cars+num_units,
 num_subtasks=num_subtasks,num_roadsideunits=num_units,basestation_cover=bs_cover,config=config)
 
 w=(env.num_processors,env.num_processor_attributes-1+env.num_subtasks)
 #agent=AC.ActorCritic(w,num_subtasks,actor_lr,critic_lr,gamma,device,clip_grad=1,beta=0,conv=1)
-agent=AC.ActorCritic_Double(w,num_subtasks,lr,5,gamma,device,clip_grad=1,beta=0.01,n_steps=4)
+agent=AC.ActorCritic_Double(w,num_subtasks,lr,5,gamma,device,clip_grad=1,beta=1,n_steps=4)
 #agent.agent.load_state_dict(torch.load("./data/model_parameter.pkl"))
-return_list=rl_utils.train_on_policy_agent(env,agent,num_episodes,4)
+return_list=rl_utils.train_on_policy_agent(env,agent,num_episodes,10)
 torch.save(agent.agent.state_dict(), "./data/model_parameter.pkl")
 
 l1=model_test(env,agent,10,num_subtasks,cycles=10)
@@ -84,6 +85,24 @@ print('next_agent##################################################')
 r_agent=RANDOMAGENT_onehot(w,num_subtasks,num_units)
 l2=model_test(env,r_agent,10,num_subtasks,cycles=10)
 print(np.array(l1).sum(),np.array(l2).sum())
+plt.plot(agent.agent_loss)
+plt.savefig('agent_loss')
+plt.show()
+plt.plot(agent.cri_loss[-10:])
+plt.savefig('cri_loss')
+plt.show()
+plt.plot(agent.act_loss)
+plt.savefig('act_loss')
+plt.show()
+plt.plot(agent.eposub_loss)
+plt.savefig('eposub_loss')
+plt.show()
+plt.plot(agent.epopri_loss)
+plt.savefig('epopri_loss')
+plt.show()
+plt.plot(agent.ac_loss)
+plt.savefig('ac_loss')
+plt.show()
 #print(np.array(l2).sum())
 logger.reset()
 
