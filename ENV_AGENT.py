@@ -233,3 +233,11 @@ class BIGENV_ONE():
 
     def step(self,action):
         return self.env_agent.step(action)
+    
+    def run(self):
+        done=False
+        state = self.env_agent.reset(self.static_queues_in,self.static_queues_out)
+        while not done:
+            action = self.env_agent.agent.take_action(state)
+            next_state, reward, done, over, _ = self.step(action)
+            state = next_state

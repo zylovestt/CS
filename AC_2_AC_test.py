@@ -13,7 +13,7 @@ random_uniform_int=lambda low,high:(lambda x:np.random.randint(low,high,x))
 random_uniform_float=lambda low,high:(lambda x:np.random.uniform(low,high,x))
 random_loc=lambda low,high:(lambda x:np.random.choice(np.arange(low,high),x,replace=False).astype('float'))
 unit_loc=lambda s,e:(lambda x:np.linspace(s,e,x+1)[:-1])
-num_cars=5
+num_cars=10
 num_units=1
 bs_cover=100
 config={'source':random_uniform_int(num_units,num_cars+num_units),
@@ -85,8 +85,8 @@ bigenv_cat=ENV_AGENT.BIGENV_ONE([deque_out_1,deque_out_2],[deque_out_cat],env_ag
 
 
 logger = Logger('AC2_'+str(agent_1.mode)+'_'+str(lr)+'.log')
-rl_utils.train_on_policy_agent(bigenv_1,bigenv_1.agent,num_episodes,10)
-rl_utils.train_on_policy_agent(bigenv_2,bigenv_2.agent,num_episodes,10)
+bigenv_1.run()
+bigenv_2.run()
 rl_utils.train_on_policy_agent(bigenv_cat,bigenv_cat.agent,num_episodes,10)
 agent_1.writer.close()
 agent_2.writer.close()
