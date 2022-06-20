@@ -48,9 +48,10 @@ class PROOUT():
             print('a car out')
 
 class ENV_AGENT(ENV.ADENVBASE):
-    def __init__(self,time_base,**kwards):
+    def __init__(self,time_base,weights,**kwards):
         super().__init__(**kwards)
         self.time_base=time_base
+        self.weights=weights
         self.agent=None
 
     def reset(self,queues_in:list[deque[PROCESSER]],queues_out:list[deque[PROCESSER]]):
@@ -118,7 +119,7 @@ class ENV_AGENT(ENV.ADENVBASE):
         self.subtask_cycle=self.config['sc'](self.num_subtasks)
         self.subtask_returnsize=self.config['sr'](self.num_subtasks)
         self.subtask_location=np.zeros((self.num_processors,self.num_subtasks),dtype='int')
-        self.subtask_location[:]=100*np.max(self.subtask_cycle)
+        #self.subtask_location[:]=100*np.max(self.subtask_cycle)
         for j in range(self.num_subtasks):
             num_choice_units=np.random.randint(low=0,high=self.num_roadsideunits+1)
             units_choice=np.random.choice(np.arange(self.num_roadsideunits),num_choice_units,replace=False)
@@ -128,10 +129,11 @@ class ENV_AGENT(ENV.ADENVBASE):
             processor_choice=np.hstack((units_choice,cars_choice))
             #num_choice=np.random.randint(low=1,high=len(self.pro_index)+1)
             #processor_choice=np.random.choice(np.array(list(self.pro_index)),num_choice,replace=False)
-            self.subtask_location[processor_choice,j]=self.subtask_cycle[j]
-
-    def judge(self,processor):
-        return 1
+            #self.subtask_location[processor_choice,j]=self.subtask_cycle[j]
+            self.subtask_location[processor_choice,j]=1
+            
+    '''def judge(self,processor):
+        return 1'''
     
     def status_change(self):  
         for queue in self.queues_in:
@@ -170,11 +172,28 @@ class ENV_AGENT(ENV.ADENVBASE):
                 self.t_change(time_pass,pro_index)
         self.time+=time_pass
 
-    def cal_reward(self,time_execution,time_wait,time_return):
+    def cal_reward(self,time_execution,time_wait,time_return,action,weights):
         a=max(time_execution+time_wait+time_return)
-        total_time=self.time_base*10 if a==np.inf else a
-        reward=(self.time_base-total_time)/self.time_base
-        return reward
+        #print(a)
+        r=np.zeros(len(weights))
+        total_time=self.time_base*1000 if a==np.inf else a
+        r[0]=(self.time_base-total_time)
+        r[1]=-np.sum(time_execution*self.processor_consume[action[0]])
+        b=np.zeros(self.num_processors)
+        for i in range(self.num_subtasks):
+            b[action[0][i]]+=time_execution[i]
+        r[2]=-np.sum(b)
+        r[3]=-np.std(b)
+        r[4]=-np.mean(self.processor_wait)
+        r[5]=-np.std(self.processor_wait)
+        r[6]=-np.mean(self.processor_lastaway_wait)
+        r[7]=-np.std(self.processor_lastaway_wait)
+        return np.sum(r*weights)
+    
+    def test(self,time_execution,time_wait,time_return):
+        a=max(time_execution+time_wait+time_return)
+        total_time=self.time_base*1000000 if a==np.inf else a
+        return total_time
 
     def copy(self,pro_index,pro):
         self.processor_frequency[pro_index]=pro.dic['processor_frequency']
@@ -195,6 +214,12 @@ class ENV_AGENT(ENV.ADENVBASE):
             a=eval('self.'+key)
             dic[key]=a[pro_index]
         return dic
+    
+    '''def cal_reward(self,time_execution,time_wait,time_return):
+        a=max(time_execution+time_wait+time_return)
+        total_time=self.time_base*10 if a==np.inf else a
+        reward=(self.time_base-total_time)/self.time_base
+        return reward'''
 
 class BIGENV_ONE():
     def __init__(self,queues_in:list[deque[PROCESSER]],queues_out:list[deque[PROCESSER]],env_agent:ENV_AGENT):

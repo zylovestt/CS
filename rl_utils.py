@@ -64,6 +64,7 @@ def train_on_policy_agent(env, agent, num_episodes,max_steps):
             if i_episode and (i_episode % 10 == 0):
                 print('episode:{}, reward:{}'.format(i_episode,np.mean(return_list[-10:])))
         agent.update(transition_dict)
+    writer.close()
     return return_list
 
 def print_state(env:ENV_AGENT.ENV_AGENT):

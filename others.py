@@ -1,3 +1,4 @@
+import scipy.integrate as si
 F=lambda f:(lambda x:si.quad(f,0,x)[0])
 
 def mysgd(fx,x,u,lr=1e-2,error_max=1e-2):
