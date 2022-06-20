@@ -39,10 +39,15 @@ class ADENVBASE:
         self.max_num_cars=self.num_processors-self.num_roadsideunits
         self.basestation_cover=kwards['basestation_cover']
         self.config=kwards['config']
+        self.set_random_const=0
         self.train=True
+    
+    def set_random_const_(self):
+        self.set_random_const=1
 
     def reset_pro(self):
-        #np.random.seed(1)
+        if self.set_random_const:
+            np.random.seed(1)
         self.over=0
         self.done=0
         self.time=0

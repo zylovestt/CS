@@ -1,9 +1,9 @@
-from tqdm import tqdm
 import numpy as np
 import torch
 import collections
 import ENV_AGENT
 import random
+from torch.utils.tensorboard import SummaryWriter
 
 class ReplayBuffer:
     def __init__(self, capacity):
@@ -29,15 +29,14 @@ def moving_average(a, window_size):
     return np.concatenate((begin, middle, end))
 
 def train_on_policy_agent(env, agent, num_episodes,max_steps):
+    writer=SummaryWriter()
     return_list = []
     done=False
     state = env.reset()
-    for i_episode in range(num_episodes):
-        episode_return = 0
+    episode_return = 0
+    i_episode=0
+    while i_episode < num_episodes:
         transition_dict = {'states': [], 'actions': [], 'next_states': [], 'rewards': [], 'dones': [], 'overs': []}
-        if done:
-            state = env.reset()
-            done = False
         step=0
         #print('NEW START')
         while not done and step<max_steps:
@@ -55,10 +54,16 @@ def train_on_policy_agent(env, agent, num_episodes,max_steps):
             transition_dict['overs'].append(over)
             state = next_state
             episode_return += reward
-        return_list.append(episode_return)
+        if done:
+            state = env.reset()
+            done = False
+            return_list.append(episode_return)
+            writer.add_scalar(tag='return',scalar_value=episode_return,global_step=i_episode)
+            episode_return = 0
+            i_episode+=1
+            if i_episode and (i_episode % 10 == 0):
+                print('episode:{}, reward:{}'.format(i_episode,np.mean(return_list[-10:])))
         agent.update(transition_dict)
-        if (i_episode+1) % 10 == 0:
-            print('episode:{}, reward:{}'.format(i_episode+1,np.mean(return_list[-10])))
     return return_list
 
 def print_state(env:ENV_AGENT.ENV_AGENT):

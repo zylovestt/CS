@@ -1,7 +1,7 @@
-from matplotlib.pyplot import cla
 import torch
 import torch.nn.functional as FU
 import torch.nn.utils as nn_utils
+from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import AGENT_NET
 
@@ -195,6 +195,8 @@ class ACTWOSTEPS(ActorCritic):
     
 class ActorCritic_Double:
     def __init__(self,input_shape:tuple,num_subtasks,lr,weights,gamma,device,clip_grad,beta,n_steps,mode,labda):
+        self.writer=SummaryWriter()
+        self.step=0
         self.agent=AGENT_NET.DoubleNet(input_shape,num_subtasks).to(device)
         #self.agent_optimizer=torch.optim.Adam(self.agent.parameters(),lr=lr,eps=1e-3)
         self.agent_optimizer=torch.optim.SGD(self.agent.parameters(),lr=lr,momentum=0.9)
@@ -298,6 +300,28 @@ class ActorCritic_Double:
         agent_loss.backward()
         nn_utils.clip_grad_norm_(self.agent.parameters(),self.clip_grad)
         self.agent_optimizer.step()  # 更新策略网络的参数
+        self.writer.add_scalar(tag='cri_loss',scalar_value=self.cri_loss[-1],global_step=self.step)
+        self.writer.add_scalar(tag='act_loss',scalar_value=self.act_loss[-1],global_step=self.step)
+        self.writer.add_scalar(tag='eposub_loss',scalar_value=self.eposub_loss[-1],global_step=self.step)
+        self.writer.add_scalar(tag='epopri_loss',scalar_value=self.epopri_loss[-1],global_step=self.step)
+        self.writer.add_scalar(tag='ac_loss',scalar_value=self.ac_loss[-1],global_step=self.step)
+        self.writer.add_scalar(tag='agent_loss',scalar_value=self.agent_loss[-1],global_step=self.step)
+        grad_max = 0.0
+        grad_means = 0.0
+        grad_count = 0
+        for p in self.agent.parameters():
+            grad_max = max(grad_max, p.grad.abs().max().item())
+            grad_means += (p.grad ** 2).mean().sqrt().item()
+            grad_count += 1
+        self.writer.add_scalar("grad_l2", grad_means / grad_count, self.step)
+        self.writer.add_scalar("grad_max", grad_max, self.step)
+        probs_new=self.agent(states)[0]
+        kl=0
+        for i in range(2):
+            for p_old,p_new in zip(probs[i],probs_new[i]):
+                kl+=-((p_new/p_old).log()*p_old).sum(dim=1).mean().item()
+        self.writer.add_scalar("kl", kl, self.step)
+        self.step+=1
     
     def calculate_probs(self,out_puts,actions):
         F=lambda i:torch.gather(out_puts[0][i],1,actions[0][:,[i]])*F(i+1)\
