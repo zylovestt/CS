@@ -5,7 +5,6 @@ import torch
 import rl_utils
 from PRINT import Logger
 from TEST import model_test
-from matplotlib import pyplot as plt
 from RANDOMAGENT import RANDOMAGENT_onehot
 
 #torch.autograd.set_detect_anomaly(True)
@@ -56,6 +55,7 @@ weights[1]=0
 env=ENV.ENVONE(time_base,weights,num_processors=num_cars+num_units,
 num_subtasks=num_subtasks,num_roadsideunits=num_units,basestation_cover=bs_cover,config=config)
 env.set_random_const_()
+env.cdma=True
 
 w=(env.num_processors,env.num_processor_attributes-1+env.num_subtasks)
 #agent=AC.ActorCritic(w,num_subtasks,actor_lr,critic_lr,gamma,device,clip_grad=1,beta=0,conv=1)
@@ -66,11 +66,12 @@ return_list=rl_utils.train_on_policy_agent(env,agent,num_episodes,10)
 torch.save(agent.agent.state_dict(), "./data/model_parameter.pkl")
 agent.writer.close()
 
-l1=model_test(env,agent,1,num_subtasks,cycles=10)
+l1=model_test(env,agent,5)
 print('next_agent##################################################')
 r_agent=RANDOMAGENT_onehot(w,num_subtasks,num_units)
-l2=model_test(env,r_agent,1,num_subtasks,cycles=10)
-print(np.array(l1).sum(),np.array(l2).sum())
+l2=model_test(env,r_agent,5)
+print(l1,l2)
+logger.reset()
 '''plt.plot(agent.agent_loss)
 plt.savefig('agent_loss')
 plt.show()
@@ -90,7 +91,6 @@ plt.plot(agent.ac_loss)
 plt.savefig('ac_loss')
 plt.show()'''
 #print(np.array(l2).sum())
-logger.reset()
 
 '''epoisodes_list=list(range(len(return_list)))
 plt.plot(epoisodes_list,return_list)

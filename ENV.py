@@ -1,3 +1,4 @@
+from doctest import FAIL_FAST
 import numpy as np
 import scipy.integrate as si
 
@@ -41,6 +42,7 @@ class ADENVBASE:
         self.config=kwards['config']
         self.set_random_const=0
         self.train=True
+        self.cdma=False
     
     def set_random_const_(self):
         self.set_random_const=1
@@ -94,7 +96,6 @@ class ADENVBASE:
     def set_task(self):
         #设置总任务属性
         self.source=self.config['source'](1)[0]    #注意！
-
         #设置子任务属性
         self.subtask_cycle=self.config['sc'](self.num_subtasks)
         self.subtask_returnsize=self.config['sr'](self.num_subtasks)
@@ -203,6 +204,8 @@ class ADENVBASE:
                     
                     self.processor_wait[processor]+=time_execution[j]
                     self.processor_lastaway_wait[processor]=wait_to_return+time_return[j]
+                    if self.cdma and (processor<self.num_roadsideunits):
+                        self.processor_lastaway_wait[processor]=0
         return time_execution,time_wait,time_return
 
     def status_change(self):

@@ -3,6 +3,7 @@ import torch
 import collections
 import ENV_AGENT
 import random
+from TEST import model_test
 from torch.utils.tensorboard import SummaryWriter
 
 class ReplayBuffer:
@@ -61,7 +62,10 @@ def train_on_policy_agent(env, agent, num_episodes,max_steps):
             writer.add_scalar(tag='return',scalar_value=episode_return,global_step=i_episode)
             episode_return = 0
             i_episode+=1
-            if i_episode and (i_episode % 10 == 0):
+            if (i_episode % 10 == 0):
+                test_reward=model_test(env,agent,1)
+                print('episode:{}, test_reward:{}'.format(i_episode,test_reward))
+                writer.add_scalar('test_reward',test_reward,i_episode)
                 print('episode:{}, reward:{}'.format(i_episode,np.mean(return_list[-10:])))
         agent.update(transition_dict)
     writer.close()
