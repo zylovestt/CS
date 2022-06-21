@@ -199,7 +199,8 @@ class ActorCritic_Double:
         self.step=0
         self.agent=AGENT_NET.DoubleNet(input_shape,num_subtasks).to(device)
         #self.agent_optimizer=torch.optim.Adam(self.agent.parameters(),lr=lr,eps=1e-3)
-        self.agent_optimizer=torch.optim.SGD(self.agent.parameters(),lr=lr,momentum=0.9)
+        #self.agent_optimizer=torch.optim.SGD(self.agent.parameters(),lr=lr,momentum=0.9)
+        self.agent_optimizer=torch.optim.NAdam(self.agent.parameters(),lr=lr,eps=1e-8)
         self.input_shape=input_shape
         self.num_processors=input_shape[0]
         self.num_subtasks=num_subtasks
@@ -298,7 +299,8 @@ class ActorCritic_Double:
             print("here!")
         self.agent_optimizer.zero_grad()
         agent_loss.backward()
-        nn_utils.clip_grad_norm_(self.agent.parameters(),self.clip_grad)
+        if not self.clip_grad=='max':
+            nn_utils.clip_grad_norm_(self.agent.parameters(),self.clip_grad)
         self.agent_optimizer.step()  # 更新策略网络的参数
         self.writer.add_scalar(tag='cri_loss',scalar_value=self.cri_loss[-1],global_step=self.step)
         self.writer.add_scalar(tag='act_loss',scalar_value=self.act_loss[-1],global_step=self.step)

@@ -9,8 +9,8 @@ success
 success
 success
 success
-episode:10, test_reward:35944.481596482736
-episode:10, reward:-900.3690052339805
+episode:10, test_reward:114326.56468152226
+episode:10, reward:-1239.4532319620255
 success
 success
 success
@@ -22,121 +22,5 @@ success
 success
 success
 success
-episode:20, test_reward:32911.654996442085
-episode:20, reward:-777.7054497376936
-success
-success
-success
-success
-success
-success
-success
-success
-success
-success
-success
-episode:30, test_reward:18106.164767481663
-episode:30, reward:-707.4620425032499
-success
-success
-success
-success
-success
-success
-success
-success
-success
-success
-success
-episode:40, test_reward:13528.156045508475
-episode:40, reward:-389.9750461022103
-success
-success
-success
-success
-success
-success
-success
-success
-success
-success
-success
-episode:50, test_reward:4753.612977615167
-episode:50, reward:-195.17131419291348
-success
-success
-success
-success
-success
-success
-success
-success
-success
-success
-success
-episode:60, test_reward:788.2426784150678
-episode:60, reward:-2.0962056365770882
-success
-success
-success
-success
-success
-success
-success
-success
-success
-success
-success
-episode:70, test_reward:722.4943301512529
-episode:70, reward:27.964279330447102
-success
-success
-success
-success
-success
-success
-success
-success
-success
-success
-success
-episode:80, test_reward:690.386674628772
-episode:80, reward:31.254228524599192
-success
-success
-success
-success
-success
-success
-success
-success
-success
-success
-success
-episode:90, test_reward:665.630068090071
-episode:90, reward:32.81127799662399
-success
-success
-success
-success
-success
-success
-success
-success
-success
-success
-success
-episode:100, test_reward:664.0524622580767
-episode:100, reward:33.64036141547373
-success
-success
-success
-success
-success
-next_agent##################################################
-success
-success
-success
-success
-success
-671.0615708917651 54679.22338004915
+episode:20, test_reward:90447.75635632755
+episode:20, reward:-1693.830442806211

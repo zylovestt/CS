@@ -9,11 +9,11 @@ from RANDOMAGENT import RANDOMAGENT_onehot
 
 np.random.seed(1)
 torch.manual_seed(0)
-lr = 1e-1
+lr = 1*1e-3
 num_episodes = 100
 gamma = 0.98
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-device = torch.device("cpu")
+#device = torch.device("cpu")
 
 random_uniform_int=lambda low,high:(lambda x:np.random.randint(low,high,x))
 random_uniform_float=lambda low,high:(lambda x:np.random.uniform(low,high,x))
@@ -57,7 +57,7 @@ env.cdma=True
 
 w=(env.num_processors,env.num_processor_attributes-1+env.num_subtasks)
 #agent=AC.ActorCritic(w,num_subtasks,actor_lr,critic_lr,gamma,device,clip_grad=1,beta=0,conv=1)
-agent=AC.ActorCritic_Double(w,num_subtasks,lr,1,gamma,device,clip_grad=1,beta=0,n_steps=4,mode='gce',labda=0.95)
+agent=AC.ActorCritic_Double(w,num_subtasks,lr,1,gamma,device,clip_grad='max',beta=0,n_steps=4,mode='gce',labda=0.95)
 #agent.agent.load_state_dict(torch.load("./data/model_parameter.pkl"))
 logger = Logger('AC_'+str(agent.mode)+'_'+str(lr)+'.log')
 return_list=rl_utils.train_on_policy_agent(env,agent,num_episodes,10)
