@@ -7,11 +7,9 @@ from PRINT import Logger
 from TEST import model_test
 from RANDOMAGENT import RANDOMAGENT_onehot
 
-#torch.autograd.set_detect_anomaly(True)
 np.random.seed(1)
 torch.manual_seed(0)
 lr = 1e-1
-#critic_lr = 1e-1
 num_episodes = 100
 gamma = 0.98
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
