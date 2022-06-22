@@ -195,7 +195,7 @@ class ACTWOSTEPS(ActorCritic):
     
 class ActorCritic_Double:
     def __init__(self,input_shape:tuple,num_subtasks,lr,weights,gamma,device,clip_grad,beta,n_steps,mode,labda):
-        self.writer=SummaryWriter()
+        self.writer=SummaryWriter(comment='AC')
         self.step=0
         self.agent=AGENT_NET.DoubleNet(input_shape,num_subtasks).to(device)
         #self.agent_optimizer=torch.optim.Adam(self.agent.parameters(),lr=lr,eps=1e-3)

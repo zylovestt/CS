@@ -9,8 +9,31 @@ success
 success
 success
 success
-episode:10, test_reward:1746.3673162375733
-episode:10, reward:-241.5509657501882
+episode:10, test_reward:7015.426102958032
+episode:10, reward:-196.9234603585594
 success
 success
 success
+success
+success
+success
+success
+success
+success
+success
+success
+episode:20, test_reward:6009.008040059026
+episode:20, reward:-64.68537611422738
+success
+success
+success
+success
+success
+success
+success
+success
+success
+success
+success
+episode:30, test_reward:3183.917571729452
+episode:30, reward:-42.05528409397347

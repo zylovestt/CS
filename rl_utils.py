@@ -30,7 +30,7 @@ def moving_average(a, window_size):
     return np.concatenate((begin, middle, end))
 
 def train_on_policy_agent(env, agent, num_episodes,max_steps):
-    writer=SummaryWriter()
+    writer=agent.writer
     return_list = []
     done=False
     state = env.reset()

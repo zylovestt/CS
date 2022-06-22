@@ -69,19 +69,21 @@ class PolicyNet_Second(nn.Module):
         return l
 
 class DoubleNet(nn.Module):
-    def __init__(self,input_shape,num_subtasks):
+    def __init__(self,input_shape,num_subtasks,group_norm=False):
         super(DoubleNet,self).__init__()
         self.num_processors=input_shape[0]
         self.num_attributes=input_shape[1]
         self.num_subtasks=num_subtasks
-        hs=256
+        self.group_norm=group_norm
+        hs=192
         groups=32
         self.base_row=nn.Conv2d(1,hs,kernel_size=(1,input_shape[1]),stride=1)
-        self.row_groupnorm=nn.GroupNorm(groups,hs)
         self.base_col=nn.Conv2d(1,hs,kernel_size=(input_shape[0],1),stride=1)
-        self.col_groupnorm=nn.GroupNorm(groups,hs)
         self.base_all=nn.Conv2d(1,3*hs,kernel_size=(input_shape[0],input_shape[1]),stride=1)
-        self.all_groupnorm=nn.GroupNorm(groups,3*hs)
+        if group_norm:
+            self.row_groupnorm=nn.GroupNorm(groups,hs)
+            self.col_groupnorm=nn.GroupNorm(groups,hs)
+            self.all_groupnorm=nn.GroupNorm(groups,3*hs)
         conv_out_size=self._get_conv_out(input_shape)+2*num_subtasks
         self.fc=nn.Sequential(
             nn.PReLU(),
@@ -121,12 +123,14 @@ class DoubleNet(nn.Module):
     
     def forward(self,x):
         #x=tuple(x[i]/10000 for i in range(len(x)))
-        conv_out_row=self.row_groupnorm(self.base_row(x[0])).view(x[0].size()[0],-1)
-        conv_out_col=self.col_groupnorm(self.base_col(x[0])).view(x[0].size()[0],-1)
-        conv_out_all=self.all_groupnorm(self.base_all(x[0])).view(x[0].size()[0],-1)
-        '''conv_out_row=self.base_row(x[0]).view(x[0].size()[0],-1)
-        conv_out_col=self.base_col(x[0]).view(x[0].size()[0],-1)
-        conv_out_all=self.base_all(x[0]).view(x[0].size()[0],-1)'''
+        if self.group_norm:
+            conv_out_row=self.row_groupnorm(self.base_row(x[0])).view(x[0].size()[0],-1)
+            conv_out_col=self.col_groupnorm(self.base_col(x[0])).view(x[0].size()[0],-1)
+            conv_out_all=self.all_groupnorm(self.base_all(x[0])).view(x[0].size()[0],-1)
+        else:
+            conv_out_row=self.base_row(x[0]).view(x[0].size()[0],-1)
+            conv_out_col=self.base_col(x[0]).view(x[0].size()[0],-1)
+            conv_out_all=self.base_all(x[0]).view(x[0].size()[0],-1)
         conv_out=torch.cat((conv_out_row,conv_out_col,conv_out_all,x[1]),1)
         out_fc=self.fc(conv_out)
         l1=[]
