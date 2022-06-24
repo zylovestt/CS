@@ -24,7 +24,7 @@ F_pf=lambda x:np.array([10,10000])
 config={'source':random_uniform_int(num_units,num_cars+num_units),
         'sc':random_uniform_int(3000,4000),
         'sr':random_uniform_int(20,40),
-        'tp':random_uniform_float(1,3),
+        'tp':random_uniform_float(1,2),
         'pfr':random_uniform_int(50000,100000),
         'pf':random_uniform_int(200,5000),
         #'pf':F_pf,
@@ -42,7 +42,7 @@ config={'source':random_uniform_int(num_units,num_cars+num_units),
         'whitenoise':1,
         'alpha':2}
 
-num_subtasks=10
+num_subtasks=20
 time_base=20
 weights=np.ones(8)
 weights[:]=1e-2
