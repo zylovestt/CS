@@ -8,7 +8,7 @@ import PPO
 np.random.seed(1)
 torch.manual_seed(0)
 lr = 1*1e-4
-num_episodes = 200
+num_episodes = 100
 gamma = 0.98
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 #device = torch.device("cpu")
@@ -17,7 +17,7 @@ random_uniform_int=lambda low,high:(lambda x:np.random.randint(low,high,x))
 random_uniform_float=lambda low,high:(lambda x:np.random.uniform(low,high,x))
 random_loc=lambda low,high:(lambda x:np.random.choice(np.arange(low,high),x,replace=False).astype('float'))
 unit_loc=lambda s,e:(lambda x:np.linspace(s,e,x+1)[:-1])
-num_cars=20
+num_cars=10
 num_units=5
 bs_cover=2000
 F_pf=lambda x:np.array([10,10000])
@@ -42,7 +42,7 @@ config={'source':random_uniform_int(num_units,num_cars+num_units),
         'whitenoise':1,
         'alpha':2}
 
-num_subtasks=20
+num_subtasks=4
 time_base=20
 weights=np.ones(8)
 weights[:]=1e-2
