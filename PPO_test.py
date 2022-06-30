@@ -8,7 +8,7 @@ import PPO
 np.random.seed(1)
 torch.manual_seed(0)
 lr = 1*1e-4
-num_episodes = 10
+num_episodes = 200
 gamma = 0.98
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 #device = torch.device("cpu")
