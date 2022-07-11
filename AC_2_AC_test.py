@@ -8,7 +8,7 @@ from collections import deque
 from TEST import model_test
 from RANDOMAGENT import RANDOMAGENT_onehot
 from copy import deepcopy
-#changegg
+#changeggtthuug001
 random_uniform_int=lambda low,high:(lambda x:np.random.randint(low,high,x))
 random_uniform_float=lambda low,high:(lambda x:np.random.uniform(low,high,x))
 random_loc=lambda low,high:(lambda x:np.random.choice(np.arange(low,high),x,replace=False).astype('float'))
