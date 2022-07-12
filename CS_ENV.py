@@ -2,7 +2,7 @@ import numpy as np
 
 class PROCESSOR:
     def __init__(self,config:dict):
-        '''F,Q,er,econs,rcons,B,p,g,d,w,alpha,twe,ler,twr'''
+        '''F,Q,er,econs,rcons,B,p,g,d,w,alpha,twe,ler'''
         self.pro_dic={}
         for k in config:
             if callable(config) and not (k=='d' or k=='Q'):
@@ -15,6 +15,7 @@ class PROCESSOR:
         self.sum_Aq=0
         self.Nk=0
         self.cal_Aq()
+        self.t=0
     
     def cal_PF(self):
         self.PF=(self.Exe+1)/(self.Exe+self.UExe+2)
@@ -24,8 +25,12 @@ class PROCESSOR:
     
     def __call__(self,tin:float,task:dict,sigma:float):
         te=task['ez']/self.pro_dic['er']
+        tp=tin-self.t
+        self.t=tin
         twe=self.pro_dic['twe']
         ler=self.pro_dic['ler']
+        ler=min(max(ler+twe-tp,0),ler)
+        twe=max(twe-tp,0)
         Q,finish=0,True
         for i in range(len(te)):
             if np.random.rand()>self.pro_dic['F']:
@@ -44,6 +49,8 @@ class PROCESSOR:
                 *self.pro_dic['w']**2))
             tr=task['rz'][i]/r
             ler=twr+tr
+        self.pro_dic['twe']=twe
+        self.pro_dic['ler']=ler
         self.cal_PF()
         Q*=sigma
         self.sum_Aq+=Q
@@ -57,7 +64,7 @@ class PROCESSORS:
         for pro_config in pro_configs:
             self.pros.append(PROCESSOR(pro_config))
     
-    def __call__(self,tin:float,tasks:dict,action:np.ndarray,sigma:float,womiga:float):
+    def __call__(self,tin:float,tasks:dict,action:np.ndarray,womiga:float,sigma:float):
         for i,rz in enumerate(tasks['rz']):
             if not rz:
                 tasks_num=i+1
@@ -83,21 +90,26 @@ class PROCESSORS:
                 Q+=Q1
                 task_time=max(task_time,task_time1)
                 cons+=cons1
-        task_time*=womiga
-        return Q,task_time,cons,finish
+        return Q,task_time*womiga,cons,finish
 
 class JOB:
-    def __init__(self,maxnum_tasks:int):
-        self.tasks={}
+    def __init__(self):
+        self.job_index=0
+        self.tin=0
         
-    def __call__(self,task_configs,job_config):
+    def __call__(self,task_configs:list,job_config:dict):
+        self.job_index+=1
         num=job_config['num']()
+        tasks={}
         for i,config in enumerate(task_configs):
             if i<num:
                 for k in config:
-                    self.tasks[k].append(config[k]())
+                    tasks[k].append(config[k]())
             else:
-                for k in self.tasks:
-                    self.tasks[k].append(0)
-        
+                for k in tasks:
+                    tasks[k].append(0)
+        self.tin+=job_config['time']()
+        womiga=job_config['womiga']()
+        sigma=job_config['sigma']()
+        return self.tin,tasks,womiga,sigma
 
