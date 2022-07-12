@@ -1,13 +1,14 @@
 import numpy as np
+
 class PROCESSOR:
-    def __init__(self,pro_config:dict):
+    def __init__(self,config:dict):
         '''F,Q,er,econs,rcons,B,p,g,d,w,alpha,twe,ler,twr'''
         self.pro_dic={}
-        for k in pro_config:
-            if callable(pro_config) and not (k=='d' or k=='Q'):
-                self.pro_dic[k]=pro_config[k][1](1)
+        for k in config:
+            if callable(config) and not (k=='d' or k=='Q'):
+                self.pro_dic[k]=config[k]()
             else:
-                self.pro_dic[k]=pro_config[k][1]
+                self.pro_dic[k]=config[k]
         self.Exe=0
         self.UExe=0
         self.cal_PF()
@@ -21,7 +22,7 @@ class PROCESSOR:
     def cal_Aq(self):
         self.Aq=self.sum_Aq/(self.Nk+1)
     
-    def __call__(self,tin,task:dict,sigma):
+    def __call__(self,tin:float,task:dict,sigma:float):
         te=task['ez']/self.pro_dic['er']
         twe=self.pro_dic['twe']
         ler=self.pro_dic['ler']
@@ -31,7 +32,7 @@ class PROCESSOR:
                 self.UExe+=1
                 finish=False
             else:
-                Q+=self.pro_dic['Q'](1)
+                Q+=self.pro_dic['Q']()
                 self.Nk+=1
                 self.Exe+=1
             twe+=te[i]
@@ -51,14 +52,20 @@ class PROCESSOR:
 
 class PROCESSORS:
     def __init__(self,pro_configs:list):
-        self.num=len(pro_configs)
+        self.num_pros=len(pro_configs)
         self.pros=[]
         for pro_config in pro_configs:
             self.pros.append(PROCESSOR(pro_config))
     
-    def __call__(self,tin,tasks:dict,action:np.ndarray):
+    def __call__(self,tin:float,tasks:dict,action:np.ndarray,sigma:float,womiga:float):
+        for i,rz in enumerate(tasks['rz']):
+            if not rz:
+                tasks_num=i+1
+                break
+        tasks['ez']=tasks['ez'][:tasks_num]
+        tasks['rz']=tasks['rz'][:tasks_num]
         act_list=[]
-        for i in range(action.shape[1]):
+        for i in range(tasks_num):
             act_list.append(i,action[0][i],action[1][i])
         act_list=sorted(act_list,key=lambda x:x[-1])
         Q,task_time,cons,finish=0,0,0,True
@@ -70,10 +77,27 @@ class PROCESSORS:
                     task['ez'].append(tasks['ez'][item[0]])
                     task['rz'].append(tasks['rz'][item[0]])
             if len(task['ez']):
-                Q1,task_time1,cons1,finish1=pro(tin,task)
+                Q1,task_time1,cons1,finish1=pro(tin,task,sigma)
                 if not finish1:
                     finish=finish1
                 Q+=Q1
                 task_time=max(task_time,task_time1)
                 cons+=cons1
+        task_time*=womiga
         return Q,task_time,cons,finish
+
+class JOB:
+    def __init__(self,maxnum_tasks:int):
+        self.tasks={}
+        
+    def __call__(self,task_configs,job_config):
+        num=job_config['num']()
+        for i,config in enumerate(task_configs):
+            if i<num:
+                for k in config:
+                    self.tasks[k].append(config[k]())
+            else:
+                for k in self.tasks:
+                    self.tasks[k].append(0)
+        
+
