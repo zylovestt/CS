@@ -1,4 +1,3 @@
-from re import S
 import numpy as np
 class PROCESSOR:
     def __init__(self,pro_config:dict):
@@ -78,6 +77,3 @@ class PROCESSORS:
                 task_time=max(task_time,task_time1)
                 cons+=cons1
         return Q,task_time,cons,finish
-
-                
-            
