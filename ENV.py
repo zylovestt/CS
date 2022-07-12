@@ -1,4 +1,3 @@
-from doctest import FAIL_FAST
 import numpy as np
 import scipy.integrate as si
 
