@@ -1,9 +1,10 @@
 import numpy as np
+from collections import OrderedDict
 
 class PROCESSOR:
     def __init__(self,config:dict):
         '''F,Q,er,econs,rcons,B,p,g,d,w,alpha,twe,ler'''
-        self.pro_dic={}
+        self.pro_dic=OrderedDict()
         for k in config:
             if callable(config) and not (k=='d' or k=='Q'):
                 self.pro_dic[k]=config[k]()
@@ -43,11 +44,7 @@ class PROCESSOR:
             twe+=te[i]
             twr=max(ler-te[i],0)
             t=tin+twe+twr
-            r=self.pro_dic['B']*np.log2(
-                1+self.pro_dic['p']*self.pro_dic['h']/
-                (self.pro_dic['d'](t)**self.pro_dic['alpha']
-                *self.pro_dic['w']**2))
-            tr=task['rz'][i]/r
+            tr=self.cal_tr(task['rz'][i],t)
             ler=twr+tr
         self.pro_dic['twe']=twe
         self.pro_dic['ler']=ler
@@ -56,13 +53,18 @@ class PROCESSOR:
         self.sum_Aq+=Q
         self.cal_Aq()
         return Q,twe+ler,np.sum(te)*self.pro_dic['econs']+np.sum(tr)*self.pro_dic['rcons'],finish
+    
+    def cal_tr(self,rz,t):
+        r=self.pro_dic['B']*np.log2(
+                1+self.pro_dic['p']*self.pro_dic['h']/
+                (self.pro_dic['d'](t)**self.pro_dic['alpha']
+                *self.pro_dic['w']**2))
+        return rz/r
 
 class PROCESSORS:
     def __init__(self,pro_configs:list):
         self.num_pros=len(pro_configs)
-        self.pros=[]
-        for pro_config in pro_configs:
-            self.pros.append(PROCESSOR(pro_config))
+        self.pros=[PROCESSOR(pro_config) for pro_config in pro_configs]
     
     def __call__(self,tin:float,tasks:dict,action:np.ndarray,womiga:float,sigma:float):
         for i,rz in enumerate(tasks['rz']):
@@ -71,9 +73,7 @@ class PROCESSORS:
                 break
         tasks['ez']=tasks['ez'][:tasks_num]
         tasks['rz']=tasks['rz'][:tasks_num]
-        act_list=[]
-        for i in range(tasks_num):
-            act_list.append(i,action[0][i],action[1][i])
+        act_list=[(i,action[0][i],action[1][i]) for i in range(tasks_num)]
         act_list=sorted(act_list,key=lambda x:x[-1])
         Q,task_time,cons,finish=0,0,0,True
         for pro in self.pros:
@@ -93,10 +93,11 @@ class PROCESSORS:
         return Q,task_time*womiga,cons,finish
 
 class JOB:
-    def __init__(self):
+    def __init__(self,maxnum_tasks):
+        self.maxnum_tasks=maxnum_tasks
         self.job_index=0
         self.tin=0
-        
+
     def __call__(self,task_configs:list,job_config:dict):
         self.job_index+=1
         num=job_config['num']()
@@ -113,3 +114,29 @@ class JOB:
         sigma=job_config['sigma']()
         return self.tin,tasks,womiga,sigma
 
+class JOBPPROS:
+    def __init__(self,job:JOB,pros:PROCESSORS,lam:list):
+        self.job=job
+        self.processor=pros
+        self.lam=lam
+        self.Tavg=self.Qavg=self.nf=self.Cavg=0
+    
+    def send(self,task_configs,job_config,config):
+        _,tasks,womiga,sigma=self.job(task_configs,job_config)
+        task_loc=config(self.processor.num_pros,self.job.maxnum_tasks)
+        pro_status=[]
+        for pro in self.processor.pros:
+            items=[value for value in pro.pro_dic if not callable(value)]
+            items.extend([pro.PF,pro.Aq,pro.pro_dic['d'](self.job.tin)-100])
+            pro_status.append(items)
+        pro_status=np.concatenate((np.array(pro_status),task_loc),1).reshape(1,1,self.processor.num_pros,-1)
+        task_status=[]
+        for item in tasks.values():
+            task_status.extend(item)
+        task_status.extend([womiga,sigma])
+        task_status=np.array(task_status)
+        return pro_status,task_status
+
+    def accept(self,action):
+
+        
