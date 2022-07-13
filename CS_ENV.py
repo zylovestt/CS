@@ -115,14 +115,20 @@ class JOB:
         return self.tin,tasks,womiga,sigma
 
 class JOBPPROS:
-    def __init__(self,job:JOB,pros:PROCESSORS,lam:list):
+    def __init__(self,job:JOB,pros:PROCESSORS,lams:list):
+        '''lams:Q,T,C,F'''
         self.job=job
         self.processor=pros
-        self.lam=lam
-        self.Tavg=self.Qavg=self.nf=self.Cavg=0
+        self.lams=lams
+        self.tar_dic=OrderedDict()
+        self.tar_dic['Q']=[]
+        self.tar_dic['T']=[]
+        self.tar_dic['C']=[]
+        self.tar_dic['F']=[]
+        self.sum_tar=[]
     
     def send(self,task_configs,job_config,config):
-        _,tasks,womiga,sigma=self.job(task_configs,job_config)
+        self.tin,self.tasks,self.womiga,self.sigma=self.job(task_configs,job_config)
         task_loc=config(self.processor.num_pros,self.job.maxnum_tasks)
         pro_status=[]
         for pro in self.processor.pros:
@@ -131,12 +137,17 @@ class JOBPPROS:
             pro_status.append(items)
         pro_status=np.concatenate((np.array(pro_status),task_loc),1).reshape(1,1,self.processor.num_pros,-1)
         task_status=[]
-        for item in tasks.values():
+        for item in self.tasks.values():
             task_status.extend(item)
-        task_status.extend([womiga,sigma])
+        task_status.extend([self.womiga,self.sigma])
         task_status=np.array(task_status)
         return pro_status,task_status
 
     def accept(self,action):
-
+        R=self.processor(self.tin,self.tasks,action,self.womiga,self.sigma)
+        t=0
+        for item,lam,r in zip(self.tar_dic.values(),self.lams,R):
+            item.append(r)
+            t+=lam*r
+        self.sum_tar.append(t)
         
