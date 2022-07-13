@@ -131,8 +131,8 @@ class ADENVBASE:
             l_t.append(eval('self.'+x[0]))
         state_subtasks=G(l_t)
 
-        return (np.concatenate(state_processors,1).reshape(1,1,self.num_processors,-1),
-            np.concatenate(state_subtasks,1))
+        return ((np.concatenate(state_processors,1).reshape(1,1,self.num_processors,-1),
+            np.concatenate(state_subtasks,1)))
 
     def reset(self):
         self.reset_pro()

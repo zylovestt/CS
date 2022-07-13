@@ -1,6 +1,48 @@
 import numpy as np
 from collections import OrderedDict
 
+rui=lambda u:(lambda:float(np.random.randint(u[0],u[1])))
+ruf=lambda u:(lambda:float(np.random.uniform(u[0],u[1])))
+
+def pro_config(dic):
+    config={}
+    i=['er','econs','rcons','B','p','g']
+    f=['F','Q','twe','ler']
+    for item in i:
+        config[item]=rui(dic[item])
+    for item in f:
+        config[item]=ruf(dic[item])
+    config['w']=float(dic['w'])
+    config['alpha']=float(dic['alpha'])
+    config['d']=dic['d']
+    return config
+
+def task_config(dic):
+    config={}
+    i=['rz','ez']
+    for item in i:
+        config[item]=rui(dic[item])
+    return config
+
+def job_config(dic):
+    config={}
+    f=['time','womiga','sigma']
+    for item in f:
+        config[item]=ruf(dic[item])
+    return config
+
+def loc_config():
+    def generate(num_pros,maxnum_tasks):
+        task_num=np.random.randint(1,maxnum_tasks)
+        num_pro_choices=np.random.randint(1,num_pros,task_num)
+        loc=np.zeros((num_pros,maxnum_tasks),'int')
+        for i in range(task_num):
+            num_pro_choice=num_pro_choices[i]
+            pro_choice=np.random.choice(np.arange(1,num_pros,dtype='int'),num_pro_choice,False)
+            loc[pro_choice,i]=1
+        return loc
+    return generate
+
 class PROCESSOR:
     def __init__(self,config:dict):
         '''F,Q,er,econs,rcons,B,p,g,d,w,alpha,twe,ler'''
@@ -127,9 +169,9 @@ class JOBPPROS:
         self.tar_dic['F']=[]
         self.sum_tar=[]
     
-    def send(self,task_configs,job_config,config):
+    def send(self,task_configs,job_config,loc_config):
         self.tin,self.tasks,self.womiga,self.sigma=self.job(task_configs,job_config)
-        task_loc=config(self.processor.num_pros,self.job.maxnum_tasks)
+        task_loc=loc_config(self.processor.num_pros,self.job.maxnum_tasks)
         pro_status=[]
         for pro in self.processor.pros:
             items=[value for value in pro.pro_dic if not callable(value)]
