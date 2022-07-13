@@ -1,10 +1,12 @@
+import math
 import numpy as np
-from collections import OrderedDict
+import pandas as pd
+from collections import OrderedDict,defaultdict
 
 rui=lambda u:(lambda:float(np.random.randint(u[0],u[1])))
 ruf=lambda u:(lambda:float(np.random.uniform(u[0],u[1])))
 
-def pro_config(dic):
+def fpro_config(dic):
     config={}
     i=['er','econs','rcons','B','p','g']
     f=['F','Q','twe','ler']
@@ -17,26 +19,26 @@ def pro_config(dic):
     config['d']=dic['d']
     return config
 
-def task_config(dic):
+def ftask_config(dic):
     config={}
     i=['rz','ez']
     for item in i:
         config[item]=rui(dic[item])
     return config
 
-def job_config(dic):
+def fjob_config(dic):
     config={}
     f=['time','womiga','sigma']
     for item in f:
         config[item]=ruf(dic[item])
+    config['num']=lambda:int(np.random.randint(dic['num'][0],dic['num'][1]))
     return config
 
-def loc_config():
-    def generate(num_pros,maxnum_tasks):
-        task_num=np.random.randint(1,maxnum_tasks)
-        num_pro_choices=np.random.randint(1,num_pros,task_num)
+def floc_config():
+    def generate(num_tasks,num_pros,maxnum_tasks):
+        num_pro_choices=np.random.randint(1,num_pros,num_tasks)
         loc=np.zeros((num_pros,maxnum_tasks),'int')
-        for i in range(task_num):
+        for i in range(num_tasks):
             num_pro_choice=num_pro_choices[i]
             pro_choice=np.random.choice(np.arange(1,num_pros,dtype='int'),num_pro_choice,False)
             loc[pro_choice,i]=1
@@ -48,7 +50,7 @@ class PROCESSOR:
         '''F,Q,er,econs,rcons,B,p,g,d,w,alpha,twe,ler'''
         self.pro_dic=OrderedDict()
         for k in config:
-            if callable(config) and not (k=='d' or k=='Q'):
+            if callable(config[k]) and not (k=='d' or k=='Q'):
                 self.pro_dic[k]=config[k]()
             else:
                 self.pro_dic[k]=config[k]
@@ -64,7 +66,7 @@ class PROCESSOR:
         self.PF=(self.Exe+1)/(self.Exe+self.UExe+2)
     
     def cal_Aq(self):
-        self.Aq=self.sum_Aq/(self.Nk+1)
+        self.Aq=(self.sum_Aq+1)/(self.Nk+2)
     
     def __call__(self,tin:float,task:dict,sigma:float):
         te=task['ez']/self.pro_dic['er']
@@ -111,11 +113,11 @@ class PROCESSORS:
     def __call__(self,tin:float,tasks:dict,action:np.ndarray,womiga:float,sigma:float):
         for i,rz in enumerate(tasks['rz']):
             if not rz:
-                tasks_num=i+1
+                num_tasks=i+1
                 break
-        tasks['ez']=tasks['ez'][:tasks_num]
-        tasks['rz']=tasks['rz'][:tasks_num]
-        act_list=[(i,action[0][i],action[1][i]) for i in range(tasks_num)]
+        tasks['ez']=tasks['ez'][:num_tasks]
+        tasks['rz']=tasks['rz'][:num_tasks]
+        act_list=[(i,action[0][i],action[1][i]) for i in range(num_tasks)]
         act_list=sorted(act_list,key=lambda x:x[-1])
         Q,task_time,cons,finish=0,0,0,True
         for pro in self.pros:
@@ -135,32 +137,38 @@ class PROCESSORS:
         return Q,task_time*womiga,cons,finish
 
 class JOB:
-    def __init__(self,maxnum_tasks):
+    def __init__(self,maxnum_tasks:int,task_configs:list,job_config:dict):
         self.maxnum_tasks=maxnum_tasks
+        self.task_configs=task_configs
+        self.job_config=job_config
         self.job_index=0
         self.tin=0
 
-    def __call__(self,task_configs:list,job_config:dict):
+    def __call__(self):
         self.job_index+=1
-        num=job_config['num']()
-        tasks={}
-        for i,config in enumerate(task_configs):
-            if i<num:
+        num_tasks=self.job_config['num']()
+        tasks=defaultdict(list)
+        for i,config in enumerate(self.task_configs):
+            if i<num_tasks:
                 for k in config:
                     tasks[k].append(config[k]())
             else:
                 for k in tasks:
                     tasks[k].append(0)
-        self.tin+=job_config['time']()
-        womiga=job_config['womiga']()
-        sigma=job_config['sigma']()
+        self.tin+=self.job_config['time']()
+        womiga=self.job_config['womiga']()
+        sigma=self.job_config['sigma']()
         return self.tin,tasks,womiga,sigma
 
 class JOBPPROS:
-    def __init__(self,job:JOB,pros:PROCESSORS,lams:list):
+    def __init__(self,pro_configs,maxnum_tasks,task_configs,job_config,loc_config,lams:list):
         '''lams:Q,T,C,F'''
-        self.job=job
-        self.processor=pros
+        self.pro_configs=pro_configs
+        self.task_configs=task_configs
+        self.job_config=job_config
+        self.loc_config=loc_config
+        self.processor=PROCESSORS(pro_configs)
+        self.job=JOB(maxnum_tasks,task_configs,job_config)
         self.lams=lams
         self.tar_dic=OrderedDict()
         self.tar_dic['Q']=[]
@@ -169,12 +177,16 @@ class JOBPPROS:
         self.tar_dic['F']=[]
         self.sum_tar=[]
     
-    def send(self,task_configs,job_config,loc_config):
-        self.tin,self.tasks,self.womiga,self.sigma=self.job(task_configs,job_config)
-        task_loc=loc_config(self.processor.num_pros,self.job.maxnum_tasks)
+    def send(self):
+        self.tin,self.tasks,self.womiga,self.sigma=self.job()
+        for i,rz in enumerate(self.tasks['rz']):
+            if not rz:
+                num_tasks=i+1
+                break
+        task_loc=self.loc_config(num_tasks,self.processor.num_pros,self.job.maxnum_tasks)
         pro_status=[]
         for pro in self.processor.pros:
-            items=[value for value in pro.pro_dic if not callable(value)]
+            items=[value for value in pro.pro_dic.values() if not callable(value)]
             items.extend([pro.PF,pro.Aq,pro.pro_dic['d'](self.job.tin)-100])
             pro_status.append(items)
         pro_status=np.concatenate((np.array(pro_status),task_loc),1).reshape(1,1,self.processor.num_pros,-1)
@@ -193,3 +205,44 @@ class JOBPPROS:
             t+=lam*r
         self.sum_tar.append(t)
         
+if __name__=='__main__':
+    '''F,Q,er,econs,rcons,B,p,g,d,w,alpha,twe,ler'''
+    np.set_printoptions(2)
+    pro_dic={}
+    pro_dic['F']=(0.9,0.99)
+    pro_dic['Q']=(0.7,1)
+    pro_dic['er']=(10,20)
+    pro_dic['econs']=(1,5)
+    pro_dic['rcons']=(1,5)
+    pro_dic['B']=(10,20)
+    pro_dic['p']=(10,20)
+    pro_dic['g']=(10,20)
+    pro_dic['d']=lambda x:100*math.sin(math.pi*x/10)
+    pro_dic['w']=1
+    pro_dic['alpha']=2
+    pro_dic['twe']=(0,0)
+    pro_dic['ler']=(0,0)
+    num_pros=3
+    pro_dics=[fpro_config(pro_dic) for _ in range(num_pros)]
+    task_dic={}
+    task_dic['ez']=(10,20)
+    task_dic['rz']=(10,20)
+    maxnum_tasks=4
+    task_dics=[ftask_config(task_dic) for _ in range(maxnum_tasks)]
+    job_d={}
+    job_d['time']=(1,9)
+    job_d['womiga']=(0.5,1)
+    job_d['sigma']=(0.5,1)
+    job_d['num']=(1,maxnum_tasks)
+    job_dic=fjob_config(job_d)
+    loc_config=floc_config()
+    lams=[1,1,1,1]
+    job_pro=JOBPPROS(pro_dics,maxnum_tasks,task_dics,job_dic,loc_config,lams)
+    A=job_pro.send()[0].reshape(num_pros,-1)
+    A=np.around(A,2)
+    l=list(np.arange(maxnum_tasks))
+    ls=['er', 'econs', 'rcons', 'B', 'p', 'g', 'F', 'twe', 'ler', 'w', 'alpha','PF','Aq', 'd']
+    ls.extend(l)
+    print(ls)
+    A=pd.DataFrame(A,columns=ls,index=['pro_1','pro_2','pro_3']).to_csv('sample.csv')
+    print(A)
