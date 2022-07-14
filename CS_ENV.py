@@ -71,12 +71,13 @@ class PROCESSOR:
     
     def cal_squard_d(self,t):
         self.d=self.pro_dic['x'](t)**2+self.pro_dic['y'](t)**2
+        return self.d
     
     def cal_v(self,t,tp):
         return self.pro_dic['x'](t)-self.pro_dic['x'](tp),self.pro_dic['y'](t)-self.pro_dic['y'](tp)
     
     def __call__(self,tin:float,task:dict,sigma:float):
-        te=task['ez']/self.pro_dic['er']
+        te=[x/self.pro_dic['er'] for x in task['ez']]
         tp=tin-self.t
         self.t=tin
         twe=self.pro_dic['twe']
@@ -107,7 +108,7 @@ class PROCESSOR:
     
     def cal_tr(self,rz,t):
         r=self.pro_dic['B']*np.log2(
-                1+self.pro_dic['p']*self.pro_dic['h']/
+                1+self.pro_dic['p']*self.pro_dic['g']/
                 (self.cal_squard_d(t)**(self.pro_dic['alpha']/2)
                 *self.pro_dic['w']**2))
         return rz/r
@@ -141,6 +142,8 @@ class PROCESSORS:
                 Q+=Q1
                 task_time=max(task_time,task_time1)
                 cons+=cons1
+        if task_time==0:
+            print('here!')
         return Q,task_time*womiga,cons,finish
 
 class JOB:
@@ -213,6 +216,19 @@ class JOBPPROS:
             item.append(r)
             t+=lam*r
         self.sum_tar.append(t)
+
+class RANDOM_AGENT:
+    def __init__(self,maxnum_tasks):
+        self.maxnum_tasks=maxnum_tasks
+    
+    def take_action(self,state):
+        action=np.zeros((2,self.maxnum_tasks),dtype='int')
+        action[1]=np.random.permutation(np.arange(self.maxnum_tasks))
+        sub_loc=state[0][0,0,:,-self.maxnum_tasks:]
+        for j,col in enumerate(sub_loc.T):
+            if col.sum():
+                action[0][j]=np.random.choice(np.arange(len(col)),p=col/col.sum())
+        return action
         
 if __name__=='__main__':
     '''F,Q,er,econs,rcons,B,p,g,d,w,alpha,twe,ler'''
@@ -261,10 +277,19 @@ if __name__=='__main__':
     loc_config=floc_config()
     lams=[1,1,1,1]
     job_pro=JOBPPROS(pro_dics,maxnum_tasks,task_dics,job_dic,loc_config,lams)
-    A=job_pro.send()[0].reshape(num_pros,-1)
+    state=job_pro.send()
+    A=state[0].reshape(num_pros,-1)
     A=np.around(A,2)
     l=list(np.arange(maxnum_tasks))
     ls=['er', 'econs', 'rcons', 'B', 'p', 'g', 'F', 'twe', 'ler', 'w', 'alpha','PF','Aq', 'vx','vy']
     ls.extend(l)
     print(ls)
     pd.DataFrame(A,columns=ls,index=['pro_1','pro_2','pro_3']).to_csv('sample.csv')
+    rand_agent=RANDOM_AGENT(maxnum_tasks)
+    for _ in range(10):
+        action=rand_agent.take_action(state)
+        #print(action)
+        job_pro.accept(action)
+        state=job_pro.send()
+    print(job_pro.tar_dic)
+    print(job_pro.sum_tar)
