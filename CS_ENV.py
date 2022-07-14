@@ -16,7 +16,8 @@ def fpro_config(dic):
         config[item]=ruf(dic[item])
     config['w']=float(dic['w'])
     config['alpha']=float(dic['alpha'])
-    config['d']=dic['d']
+    config['x']=dic['x']
+    config['y']=dic['y']
     return config
 
 def ftask_config(dic):
@@ -50,7 +51,7 @@ class PROCESSOR:
         '''F,Q,er,econs,rcons,B,p,g,d,w,alpha,twe,ler'''
         self.pro_dic=OrderedDict()
         for k in config:
-            if callable(config[k]) and not (k=='d' or k=='Q'):
+            if callable(config[k]) and not k=='Q':
                 self.pro_dic[k]=config[k]()
             else:
                 self.pro_dic[k]=config[k]
@@ -67,6 +68,12 @@ class PROCESSOR:
     
     def cal_Aq(self):
         self.Aq=(self.sum_Aq+1)/(self.Nk+2)
+    
+    def cal_squard_d(self,t):
+        self.d=self.pro_dic['x'](t)**2+self.pro_dic['y'](t)**2
+    
+    def cal_v(self,t,tp):
+        return self.pro_dic['x'](t)-self.pro_dic['x'](tp),self.pro_dic['y'](t)-self.pro_dic['y'](tp)
     
     def __call__(self,tin:float,task:dict,sigma:float):
         te=task['ez']/self.pro_dic['er']
@@ -101,7 +108,7 @@ class PROCESSOR:
     def cal_tr(self,rz,t):
         r=self.pro_dic['B']*np.log2(
                 1+self.pro_dic['p']*self.pro_dic['h']/
-                (self.pro_dic['d'](t)**self.pro_dic['alpha']
+                (self.cal_squard_d(t)**(self.pro_dic['alpha']/2)
                 *self.pro_dic['w']**2))
         return rz/r
 
@@ -187,7 +194,9 @@ class JOBPPROS:
         pro_status=[]
         for pro in self.processor.pros:
             items=[value for value in pro.pro_dic.values() if not callable(value)]
-            items.extend([pro.PF,pro.Aq,pro.pro_dic['d'](self.job.tin)-100])
+            items.extend([pro.PF,pro.Aq])
+            #pro.pro_dic['x'](self.job.tin)-pro.pro_dic['x'](100)
+            items.extend(pro.cal_v(self.job.tin,100))
             pro_status.append(items)
         pro_status=np.concatenate((np.array(pro_status),task_loc),1).reshape(1,1,self.processor.num_pros,-1)
         task_status=[]
@@ -217,7 +226,21 @@ if __name__=='__main__':
     pro_dic['B']=(10,20)
     pro_dic['p']=(10,20)
     pro_dic['g']=(10,20)
-    pro_dic['d']=lambda x:100*math.sin(math.pi*x/10)
+    #pro_dic['d']=lambda:(lambda x:100*math.sin(math.pi*x/10))
+    def fx():
+        h=np.random.random()
+        def g(x):
+            t=100*h*math.sin(h*x/10)+10
+            return t
+        return g
+    def fy():
+        h=np.random.random()
+        def g(x):
+            t=50*h*math.sin(h*x/5)-10
+            return t
+        return g
+    pro_dic['x']=fx
+    pro_dic['y']=fy
     pro_dic['w']=1
     pro_dic['alpha']=2
     pro_dic['twe']=(0,0)
@@ -241,8 +264,7 @@ if __name__=='__main__':
     A=job_pro.send()[0].reshape(num_pros,-1)
     A=np.around(A,2)
     l=list(np.arange(maxnum_tasks))
-    ls=['er', 'econs', 'rcons', 'B', 'p', 'g', 'F', 'twe', 'ler', 'w', 'alpha','PF','Aq', 'd']
+    ls=['er', 'econs', 'rcons', 'B', 'p', 'g', 'F', 'twe', 'ler', 'w', 'alpha','PF','Aq', 'vx','vy']
     ls.extend(l)
     print(ls)
-    A=pd.DataFrame(A,columns=ls,index=['pro_1','pro_2','pro_3']).to_csv('sample.csv')
-    print(A)
+    pd.DataFrame(A,columns=ls,index=['pro_1','pro_2','pro_3']).to_csv('sample.csv')
