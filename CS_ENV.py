@@ -129,7 +129,7 @@ class PROCESSORS:
         tasks['rz']=tasks['rz'][:num_tasks]
         act_list=[(i,action[0][i],action[1][i]) for i in range(num_tasks)]
         act_list=sorted(act_list,key=lambda x:x[-1])
-        Q,task_time,cons,finish=0,-1,0,True
+        Q,task_time,cons,finish=0,0,0,True
         for i,pro in enumerate(self.pros):
             task={}
             task['ez'],task['rz']=[],[]
@@ -144,7 +144,7 @@ class PROCESSORS:
                 Q+=Q1
                 task_time=max(task_time,task_time1)
                 cons+=cons1
-        if task_time==-1:
+        if task_time==0:
             print('here!')
         return Q,task_time*womiga,cons,finish
 
@@ -200,7 +200,6 @@ class JOBPPROS:
         for pro in self.processor.pros:
             items=[value for value in pro.pro_dic.values() if not callable(value)]
             items.extend([pro.PF,pro.Aq])
-            #pro.pro_dic['x'](self.job.tin)-pro.pro_dic['x'](100)
             items.extend(pro.cal_v(self.job.tin,100))
             pro_status.append(items)
         pro_status=np.concatenate((np.array(pro_status),task_loc),1).reshape(1,1,self.processor.num_pros,-1)
@@ -245,7 +244,6 @@ if __name__=='__main__':
     pro_dic['B']=(10,20)
     pro_dic['p']=(10,20)
     pro_dic['g']=(10,20)
-    #pro_dic['d']=lambda:(lambda x:100*math.sin(math.pi*x/10))
     def fx():
         h=np.random.random()
         def g(x):
@@ -286,12 +284,10 @@ if __name__=='__main__':
     l=list(np.arange(maxnum_tasks))
     ls=['er', 'econs', 'rcons', 'B', 'p', 'g', 'F', 'twe', 'ler', 'w', 'alpha','PF','Aq', 'vx','vy']
     ls.extend(l)
-    print(ls)
     pd.DataFrame(A,columns=ls,index=['pro_1','pro_2','pro_3']).to_csv('sample.csv')
     rand_agent=RANDOM_AGENT(maxnum_tasks)
-    for _ in range(10):
+    for _ in range(1000):
         action=rand_agent.take_action(state)
-        #print(action)
         job_pro.accept(action)
         state=job_pro.send()
     print(job_pro.tar_dic)
