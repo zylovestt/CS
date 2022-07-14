@@ -104,6 +104,8 @@ class PROCESSOR:
         Q*=sigma
         self.sum_Aq+=Q
         self.cal_Aq()
+        if twe+ler==0:
+            print('here!')
         return Q,twe+ler,np.sum(te)*self.pro_dic['econs']+np.sum(tr)*self.pro_dic['rcons'],finish
     
     def cal_tr(self,rz,t):
@@ -121,14 +123,14 @@ class PROCESSORS:
     def __call__(self,tin:float,tasks:dict,action:np.ndarray,womiga:float,sigma:float):
         for i,rz in enumerate(tasks['rz']):
             if not rz:
-                num_tasks=i+1
+                num_tasks=i
                 break
         tasks['ez']=tasks['ez'][:num_tasks]
         tasks['rz']=tasks['rz'][:num_tasks]
         act_list=[(i,action[0][i],action[1][i]) for i in range(num_tasks)]
         act_list=sorted(act_list,key=lambda x:x[-1])
-        Q,task_time,cons,finish=0,0,0,True
-        for pro in self.pros:
+        Q,task_time,cons,finish=0,-1,0,True
+        for i,pro in enumerate(self.pros):
             task={}
             task['ez'],task['rz']=[],[]
             for item in act_list:
@@ -142,7 +144,7 @@ class PROCESSORS:
                 Q+=Q1
                 task_time=max(task_time,task_time1)
                 cons+=cons1
-        if task_time==0:
+        if task_time==-1:
             print('here!')
         return Q,task_time*womiga,cons,finish
 
@@ -232,6 +234,7 @@ class RANDOM_AGENT:
         
 if __name__=='__main__':
     '''F,Q,er,econs,rcons,B,p,g,d,w,alpha,twe,ler'''
+    #np.random.seed(1)
     np.set_printoptions(2)
     pro_dic={}
     pro_dic['F']=(0.9,0.99)
