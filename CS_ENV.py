@@ -198,9 +198,9 @@ class JOBPPROS:
         task_loc=self.loc_config(num_tasks,self.processor.num_pros,self.job.maxnum_tasks)
         pro_status=[]
         for pro in self.processor.pros:
-            items=[value for value in pro.pro_dic.values() if not callable(value)]
-            items.extend([pro.PF,pro.Aq])
-            items.extend(pro.cal_v(self.job.tin,100))
+            items=[value for k,value in pro.pro_dic.items() if not callable(value) and not k=='F']
+            items.extend([pro.PF,pro.Aq,pro.pro_dic['x'](self.job.tin),pro.pro_dic['y'](self.job.tin)])
+            items.extend(pro.cal_v(self.job.tin,10))
             pro_status.append(items)
         pro_status=np.concatenate((np.array(pro_status),task_loc),1).reshape(1,1,self.processor.num_pros,-1)
         task_status=[]
@@ -282,7 +282,7 @@ if __name__=='__main__':
     A=state[0].reshape(num_pros,-1)
     A=np.around(A,2)
     l=list(np.arange(maxnum_tasks))
-    ls=['er', 'econs', 'rcons', 'B', 'p', 'g', 'F', 'twe', 'ler', 'w', 'alpha','PF','Aq', 'vx','vy']
+    ls=['er', 'econs', 'rcons', 'B', 'p', 'g', 'twe', 'ler', 'w', 'alpha','PF','Aq', 'x', 'y', 'vx','vy']
     ls.extend(l)
     pd.DataFrame(A,columns=ls,index=['pro_1','pro_2','pro_3']).to_csv('sample.csv')
     rand_agent=RANDOM_AGENT(maxnum_tasks)
