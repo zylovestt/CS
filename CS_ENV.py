@@ -176,8 +176,8 @@ class JOB:
 
 class CSENV:
     def __init__(self,pro_configs:list,maxnum_tasks:int,
-        task_configs:list,job_config:dict,loc_config:function,
-        lams:dict,maxnum_episode:int,base:dict):
+        task_configs:list,job_config:dict,loc_config,
+        lams:dict,maxnum_episode:int,bases:dict):
         '''lams:Q,T,C,F'''
         self.pro_configs=pro_configs
         self.task_configs=task_configs
@@ -186,34 +186,21 @@ class CSENV:
         #self.processor=PROCESSORS(pro_configs)
         #self.job=JOB(maxnum_tasks,task_configs,job_config)
         self.lams=lams
-        self.tar_dic=OrderedDict()
+        self.bases=bases
+        self.tar_dic,self.tarb_dic={},{}
         self.tar_dic['Q']=[]
         self.tar_dic['T']=[]
         self.tar_dic['C']=[]
         self.tar_dic['F']=[]
-        self.base=base
+        self.tarb_dic['Qb']=[]
+        self.tarb_dic['Tb']=[]
+        self.tarb_dic['Cb']=[]
+        self.tarb_dic['Fb']=[]
         self.sum_tar=[]
+        self.sum_tarb=[]
         self.maxnum_episode=maxnum_episode
-        self.set_random_const=0
-    
-    def set_random_const_(self):
-        self.set_random_const=1
-        
-    def reset(self):
-        if self.set_random_const:
-            np.random.seed(1)
-        self.processor=PROCESSORS(self.pro_configs)
-        self.job=JOB(maxnum_tasks,self.task_configs,self.job_config)
-        return self.send()
-    
-    def step(self,action:np.ndarray):
-        
-        if self.train:
-            reward=
-        else:
-            reward=
-        return ,reward,self.done,self.over,None
-
+        self.set_random_const=False
+        self.train=True
     
     def send(self):
         self.tin,self.tasks,self.womiga,self.sigma=self.job()
@@ -238,11 +225,36 @@ class CSENV:
 
     def accept(self,action:np.ndarray):
         R=self.processor(self.tin,self.tasks,action,self.womiga,self.sigma)
-        t=0
+        t,s=0,0
         for k,value in self.tar_dic.items():
             value.append(R[k])
             t+=self.lams[k]*R[k]
+            r=(R[k]-self.bases[k])/self.bases[k]
+            self.tarb_dic[k+'b'].append(r)
+            s+=self.lams[k]*r
         self.sum_tar.append(t)
+        self.sum_tarb.append(s)
+    
+    def reset(self):
+        self.over=0
+        self.done=0
+        self.num_steps=0
+        if self.set_random_const:
+            np.random.seed(1)
+        self.processor=PROCESSORS(self.pro_configs)
+        self.job=JOB(maxnum_tasks,self.task_configs,self.job_config)
+        return self.send()
+    
+    def step(self,action:np.ndarray):
+        self.accept(action)
+        if self.train:
+            reward=self.sum_tarb[-1]
+        else:
+            reward=self.sum_tar[-1]
+        self.num_steps+=1
+        if self.num_steps>self.maxnum_episode:
+            self.done=1
+        return self.send(),reward,self.done,self.over,None
 
 class RANDOM_AGENT:
     def __init__(self,maxnum_tasks):
@@ -302,9 +314,11 @@ if __name__=='__main__':
     job_d['num']=(1,maxnum_tasks)
     job_dic=fjob_config(job_d)
     loc_config=floc_config()
-    lams=[1,1,1,1]
-    job_pro=CSENV(pro_dics,maxnum_tasks,task_dics,job_dic,loc_config,lams)
-    state=job_pro.send()
+    z=['Q','T','C','F']
+    lams={x:1 for x in z}
+    bases={x:1 for x in z}
+    job_pros=CSENV(pro_dics,maxnum_tasks,task_dics,job_dic,loc_config,lams,100,bases)
+    state=job_pros.reset()
     A=state[0].reshape(num_pros,-1)
     A=np.around(A,2)
     l=list(np.arange(maxnum_tasks))
@@ -312,9 +326,11 @@ if __name__=='__main__':
     ls.extend(l)
     pd.DataFrame(A,columns=ls,index=['pro_1','pro_2','pro_3']).to_csv('sample.csv')
     rand_agent=RANDOM_AGENT(maxnum_tasks)
-    for _ in range(1000):
+    done=0
+    while not done:
         action=rand_agent.take_action(state)
-        job_pro.accept(action)
-        state=job_pro.send()
-    print(job_pro.tar_dic)
-    print(job_pro.sum_tar)
+        state,_,done,_,_=job_pros.step(action)
+    print(job_pros.tar_dic)
+    print(job_pros.sum_tar)
+    print(job_pros.tarb_dic)
+    print(job_pros.sum_tarb)
