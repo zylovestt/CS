@@ -32,16 +32,16 @@ def fjob_config(dic):
     f=['time','womiga','sigma']
     for item in f:
         config[item]=ruf(dic[item])
-    config['num']=lambda:int(np.random.randint(dic['num'][0],dic['num'][1]))
+    config['num']=lambda:int(np.random.randint(dic['num'][0],dic['num'][1]+1))
     return config
 
 def floc_config():
     def generate(num_tasks,num_pros,maxnum_tasks):
-        num_pro_choices=np.random.randint(1,num_pros,num_tasks)
+        num_pro_choices=np.random.randint(1,num_pros+1,maxnum_tasks)
         loc=np.zeros((num_pros,maxnum_tasks),'int')
-        for i in range(num_tasks):
+        for i in range(maxnum_tasks):
             num_pro_choice=num_pro_choices[i]
-            pro_choice=np.random.choice(np.arange(1,num_pros,dtype='int'),num_pro_choice,False)
+            pro_choice=np.random.choice(np.arange(num_pros,dtype='int'),num_pro_choice,False)
             loc[pro_choice,i]=1
         return loc
     return generate
@@ -105,7 +105,7 @@ class PROCESSOR:
         self.sum_Aq+=Q
         self.cal_Aq()
         if twe+ler==0:
-            print('here!')
+            print('t_here!')
         return Q,twe+ler,np.sum(te)*self.pro_dic['econs']+np.sum(tr)*self.pro_dic['rcons'],finish
     
     def cal_tr(self,rz,t):
@@ -122,9 +122,8 @@ class PROCESSORS:
     
     def __call__(self,tin:float,tasks:dict,action:np.ndarray,womiga:float,sigma:float):
         for i,rz in enumerate(tasks['rz']):
-            if not rz:
-                num_tasks=i
                 break
+        num_tasks=i if not rz else i+1
         tasks['ez']=tasks['ez'][:num_tasks]
         tasks['rz']=tasks['rz'][:num_tasks]
         act_list=[(i,action[0][i],action[1][i]) for i in range(num_tasks)]
@@ -145,7 +144,7 @@ class PROCESSORS:
                 task_time=max(task_time,task_time1)
                 cons+=cons1
         if task_time==0:
-            print('here!')
+            print('ta_here!')
         dic={}
         dic['Q'],dic['T'],dic['C'],dic['F']=Q,task_time*womiga,cons,finish
         return dic
@@ -183,6 +182,7 @@ class CSENV:
         self.task_configs=task_configs
         self.job_config=job_config
         self.loc_config=loc_config
+        self.maxnum_tasks=maxnum_tasks
         #self.processor=PROCESSORS(pro_configs)
         #self.job=JOB(maxnum_tasks,task_configs,job_config)
         self.lams=lams
@@ -206,8 +206,8 @@ class CSENV:
         self.tin,self.tasks,self.womiga,self.sigma=self.job()
         for i,rz in enumerate(self.tasks['rz']):
             if not rz:
-                num_tasks=i+1
                 break
+        num_tasks=i if not rz else i+1
         task_loc=self.loc_config(num_tasks,self.processor.num_pros,self.job.maxnum_tasks)
         pro_status=[]
         for pro in self.processor.pros:
@@ -220,7 +220,7 @@ class CSENV:
         for item in self.tasks.values():
             task_status.extend(item)
         task_status.extend([self.womiga,self.sigma])
-        task_status=np.array(task_status)
+        task_status=np.array(task_status).reshape(1,-1)
         return pro_status,task_status
 
     def accept(self,action:np.ndarray):
@@ -229,7 +229,7 @@ class CSENV:
         for k,value in self.tar_dic.items():
             value.append(R[k])
             t+=self.lams[k]*R[k]
-            r=(R[k]-self.bases[k])/self.bases[k]
+            r=(self.bases[k]-R[k])/self.bases[k]
             self.tarb_dic[k+'b'].append(r)
             s+=self.lams[k]*r
         self.sum_tar.append(t)
@@ -242,7 +242,7 @@ class CSENV:
         if self.set_random_const:
             np.random.seed(1)
         self.processor=PROCESSORS(self.pro_configs)
-        self.job=JOB(maxnum_tasks,self.task_configs,self.job_config)
+        self.job=JOB(self.maxnum_tasks,self.task_configs,self.job_config)
         return self.send()
     
     def step(self,action:np.ndarray):
@@ -254,6 +254,7 @@ class CSENV:
         self.num_steps+=1
         if self.num_steps>self.maxnum_episode:
             self.done=1
+            print('done')
         return self.send(),reward,self.done,self.over,None
 
 class RANDOM_AGENT:

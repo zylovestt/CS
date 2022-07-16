@@ -87,10 +87,10 @@ plt.savefig('epopri_loss')
 plt.show()
 plt.plot(agent.ac_loss)
 plt.savefig('ac_loss')
-plt.show()'''
-#print(np.array(l2).sum())
+plt.show()
+print(np.array(l2).sum())
 
-'''epoisodes_list=list(range(len(return_list)))
+epoisodes_list=list(range(len(return_list)))
 plt.plot(epoisodes_list,return_list)
 plt.xlabel('Episodes')
 plt.ylabel('Returns')
