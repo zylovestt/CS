@@ -146,7 +146,9 @@ class PROCESSORS:
                 cons+=cons1
         if task_time==0:
             print('here!')
-        return Q,task_time*womiga,cons,finish
+        dic={}
+        dic['Q'],dic['T'],dic['C'],dic['F']=Q,task_time*womiga,cons,finish
+        return dic
 
 class JOB:
     def __init__(self,maxnum_tasks:int,task_configs:list,job_config:dict):
@@ -172,22 +174,46 @@ class JOB:
         sigma=self.job_config['sigma']()
         return self.tin,tasks,womiga,sigma
 
-class JOBPPROS:
-    def __init__(self,pro_configs,maxnum_tasks,task_configs,job_config,loc_config,lams:list):
+class CSENV:
+    def __init__(self,pro_configs:list,maxnum_tasks:int,
+        task_configs:list,job_config:dict,loc_config:function,
+        lams:dict,maxnum_episode:int,base:dict):
         '''lams:Q,T,C,F'''
         self.pro_configs=pro_configs
         self.task_configs=task_configs
         self.job_config=job_config
         self.loc_config=loc_config
-        self.processor=PROCESSORS(pro_configs)
-        self.job=JOB(maxnum_tasks,task_configs,job_config)
+        #self.processor=PROCESSORS(pro_configs)
+        #self.job=JOB(maxnum_tasks,task_configs,job_config)
         self.lams=lams
         self.tar_dic=OrderedDict()
         self.tar_dic['Q']=[]
         self.tar_dic['T']=[]
         self.tar_dic['C']=[]
         self.tar_dic['F']=[]
+        self.base=base
         self.sum_tar=[]
+        self.maxnum_episode=maxnum_episode
+        self.set_random_const=0
+    
+    def set_random_const_(self):
+        self.set_random_const=1
+        
+    def reset(self):
+        if self.set_random_const:
+            np.random.seed(1)
+        self.processor=PROCESSORS(self.pro_configs)
+        self.job=JOB(maxnum_tasks,self.task_configs,self.job_config)
+        return self.send()
+    
+    def step(self,action:np.ndarray):
+        
+        if self.train:
+            reward=
+        else:
+            reward=
+        return ,reward,self.done,self.over,None
+
     
     def send(self):
         self.tin,self.tasks,self.womiga,self.sigma=self.job()
@@ -210,12 +236,12 @@ class JOBPPROS:
         task_status=np.array(task_status)
         return pro_status,task_status
 
-    def accept(self,action):
+    def accept(self,action:np.ndarray):
         R=self.processor(self.tin,self.tasks,action,self.womiga,self.sigma)
         t=0
-        for item,lam,r in zip(self.tar_dic.values(),self.lams,R):
-            item.append(r)
-            t+=lam*r
+        for k,value in self.tar_dic.items():
+            value.append(R[k])
+            t+=self.lams[k]*R[k]
         self.sum_tar.append(t)
 
 class RANDOM_AGENT:
@@ -277,7 +303,7 @@ if __name__=='__main__':
     job_dic=fjob_config(job_d)
     loc_config=floc_config()
     lams=[1,1,1,1]
-    job_pro=JOBPPROS(pro_dics,maxnum_tasks,task_dics,job_dic,loc_config,lams)
+    job_pro=CSENV(pro_dics,maxnum_tasks,task_dics,job_dic,loc_config,lams)
     state=job_pro.send()
     A=state[0].reshape(num_pros,-1)
     A=np.around(A,2)
