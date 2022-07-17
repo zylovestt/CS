@@ -271,7 +271,7 @@ class RANDOM_AGENT:
         sub_loc=state[0][0,0,:,-self.maxnum_tasks:]
         for j,col in enumerate(sub_loc.T):
             if col.sum():
-                action[0][j]=np.random.choice(np.arange(len(col)),p=col/col.sum())
+                action[0][j]=np.random.choice(np.arange(len(col)),p=(col+1e-4)/((col+1e-4).sum()))
         return action
         
 if __name__=='__main__':

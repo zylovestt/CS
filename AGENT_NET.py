@@ -134,7 +134,7 @@ class DoubleNet_softmax(nn.Module):
             nn.PReLU(),
             nn.Linear(hs,1))
         self.policy_layer=nn.ModuleList([F(hs+self.num_processors,input_shape[0][2]) for _ in range(num_subtasks)])
-        self.prior_layer=nn.ModuleList([F(hs,num_subtasks) for _ in range(num_subtasks)])
+        self.prior_layer=nn.ModuleList([F(hs,num_subtasks) for _ in range(num_subtasks-1)])
     
     def _get_conv_out(self,input_shape):
         s=input_shape[0][-2:]
