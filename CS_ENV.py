@@ -36,7 +36,7 @@ def fjob_config(dic):
     return config
 
 def floc_config():
-    def generate(num_tasks,num_pros,maxnum_tasks):
+    def generate(num_pros,maxnum_tasks):
         num_pro_choices=np.random.randint(1,num_pros+1,maxnum_tasks)
         loc=np.zeros((num_pros,maxnum_tasks),'int')
         for i in range(maxnum_tasks):
@@ -208,7 +208,7 @@ class CSENV:
             if not rz:
                 break
         num_tasks=i if not rz else i+1
-        task_loc=self.loc_config(num_tasks,self.processor.num_pros,self.job.maxnum_tasks)
+        task_loc=self.loc_config(self.processor.num_pros,self.job.maxnum_tasks)
         pro_status=[]
         for pro in self.processor.pros:
             items=[value for k,value in pro.pro_dic.items() if not callable(value) and not k=='F']
@@ -235,6 +235,9 @@ class CSENV:
         self.sum_tar.append(t)
         self.sum_tarb.append(s)
     
+    def set_random_const_(self):
+        self.set_random_const=1
+
     def reset(self):
         self.over=0
         self.done=0

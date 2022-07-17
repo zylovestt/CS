@@ -54,8 +54,9 @@ env=ENV.ENVONE(time_base,weights,num_processors=num_cars+num_units,
 num_subtasks=num_subtasks,num_roadsideunits=num_units,basestation_cover=bs_cover,config=config)
 env.set_random_const_()
 env.cdma=True
-
-w=(env.num_processors,env.num_processor_attributes-1+env.num_subtasks)
+state=env.reset()
+w=(state[0].shape,state[1].shape)
+#w=(env.num_processors,env.num_processor_attributes-1+env.num_subtasks)
 #agent=AC.ActorCritic(w,num_subtasks,actor_lr,critic_lr,gamma,device,clip_grad=1,beta=0,conv=1)
 agent=AC.ActorCritic_Double(w,num_subtasks,lr,1,gamma,device,clip_grad='max',beta=0,n_steps=4,mode='gce',labda=0.95)
 #agent.agent.load_state_dict(torch.load("./data/model_parameter.pkl"))
