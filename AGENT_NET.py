@@ -161,7 +161,7 @@ class DoubleNet_softmax(nn.Module):
             w=layer(v)
             p=(1/(-u))+1+w
             #z=F.softmax(p,dim=1)+1e-14
-            if p.sum().isnan().item():
+            if p.sum().isnan().item() or p.sum().isinf().item():
                 print('net_here')
             l1.append(p)
         l2=[layer(out_fc) for layer in self.prior_layer]

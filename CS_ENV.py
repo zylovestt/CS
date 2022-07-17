@@ -38,7 +38,8 @@ def fjob_config(dic):
 def floc_config():
     def generate(num_pros,maxnum_tasks):
         num_pro_choices=np.random.randint(1,num_pros+1,maxnum_tasks)
-        loc=np.zeros((num_pros,maxnum_tasks),'int')
+        loc=np.zeros((num_pros,maxnum_tasks),dtype='float')
+        loc[:]=-1e-4
         for i in range(maxnum_tasks):
             num_pro_choice=num_pro_choices[i]
             pro_choice=np.random.choice(np.arange(num_pros,dtype='int'),num_pro_choice,False)
