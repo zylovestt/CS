@@ -1,10 +1,10 @@
 import numpy as np
 
-def model_test(env,agent,num_episodes):
+def model_test(env,agent,num_episodes,seed):
     env.train=False
     return_list = []
     #num_subtasks=env.num_subtasks
-    np.random.seed(1)
+    np.random.seed(seed)
     for i in range(num_episodes):
         episode_return = 0
         state = env.reset()

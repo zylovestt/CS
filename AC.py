@@ -269,18 +269,18 @@ class ActorCritic_Double_softmax:
         td_delta=F_td(rewards,states,next_states,overs)  # 时序差分误差
         td_target=td_delta+self.agent(states)[1]
         self.ac_loss.append(td_delta.mean().item())
-        probs=self.agent(states)[0]
+        b_probs=self.agent(states)[0]
         s=0
         #probs=(probs[0]+1e-10,probs[1]+1e-10)
-        for prob in probs[0]:
+        for prob in b_probs[0]:
             s+=(FU.softmax(prob,dim=1)*FU.log_softmax(prob,dim=1)).sum(dim=1)
         t=0
-        for prob in probs[1]:
+        for prob in b_probs[1]:
             t+=(FU.softmax(prob,dim=1)*FU.log_softmax(prob,dim=1)).sum(dim=1)
         self.eposub_loss.append(s.mean().item())
         self.epopri_loss.append(t.mean().item())
         epo_loss=self.beta*(s.mean()+t.mean())
-        log_probs=torch.log(self.calculate_probs(probs,actions))
+        log_probs=torch.log(self.calculate_probs(b_probs,actions))
         actor_loss=torch.mean(-log_probs * td_delta.detach())
         self.act_loss.append(actor_loss.item())
         # 均方误差损失函数
@@ -308,14 +308,16 @@ class ActorCritic_Double_softmax:
             grad_max = max(grad_max, p.grad.abs().max().item())
             grad_means += (p.grad ** 2).mean().sqrt().item()
             grad_count += 1
-        self.writer.add_scalar("grad_l2", grad_means / grad_count, self.step)
-        self.writer.add_scalar("grad_max", grad_max, self.step)
-        probs_new=self.agent(states)[0]
+        self.writer.add_scalar('grad_l2', grad_means / grad_count, self.step)
+        self.writer.add_scalar('grad_max', grad_max, self.step)
+        b_probs_new=self.agent(states)[0]
+        probs_new=tuple([FU.softmax(x,dim=1)+1e-14 for x in b_probs_new[i]] for i in range(2))
+        probs=tuple([FU.softmax(x,dim=1)+1e-14 for x in b_probs[i]] for i in range(2))
         kl=0
         for i in range(2):
             for p_old,p_new in zip(probs[i],probs_new[i]):
                 kl+=-((p_new/p_old).log()*p_old).sum(dim=1).mean().item()
-        self.writer.add_scalar("kl", kl, self.step)
+        self.writer.add_scalar(tag="kl", scalar_value=kl, global_step=self.step)
         self.step+=1
     
     def calculate_probs(self,out_puts,actions):

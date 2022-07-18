@@ -63,7 +63,7 @@ def train_on_policy_agent(env, agent, num_episodes,max_steps):
             episode_return = 0
             i_episode+=1
             if (i_episode % 10 == 0):
-                test_reward=model_test(env,agent,1)
+                test_reward=model_test(env,agent,1,1)
                 print('episode:{}, test_reward:{}'.format(i_episode,test_reward))
                 writer.add_scalar('test_reward',test_reward,i_episode)
                 print('episode:{}, reward:{}'.format(i_episode,np.mean(return_list[-10:])))

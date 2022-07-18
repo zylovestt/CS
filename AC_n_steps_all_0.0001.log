@@ -1,22 +1,142 @@
-time is too long
-time is too long
-time is too long
-time is too long
-episode:10, reward:-1.6873288191392577
-time is too long
-time is too long
-time is too long
-time is too long
-time is too long
-episode:20, reward:-1.808675847529878
-time is too long
-time is too long
-time is too long
-time is too long
-episode:30, reward:-1.6911933808184627
-time is too long
-time is too long
-time is too long
-time is too long
-episode:40, reward:-1.6136629289821354
-time is too long
+done
+done
+done
+done
+done
+done
+done
+done
+done
+done
+done
+episode:10, test_reward:1511.6992588542087
+episode:10, reward:-200.84931071038224
+done
+done
+done
+done
+done
+done
+done
+done
+done
+done
+done
+episode:20, test_reward:1053.8390790192375
+episode:20, reward:-111.21724930379102
+done
+done
+done
+done
+done
+done
+done
+done
+done
+done
+done
+episode:30, test_reward:1112.1554406396165
+episode:30, reward:-87.30547280763038
+done
+done
+done
+done
+done
+done
+done
+done
+done
+done
+done
+episode:40, test_reward:1041.1219872088814
+episode:40, reward:-79.96503767487866
+done
+done
+done
+done
+done
+done
+done
+done
+done
+done
+done
+episode:50, test_reward:984.420984497835
+episode:50, reward:-67.08910396099728
+done
+done
+done
+done
+done
+done
+done
+done
+done
+done
+done
+episode:60, test_reward:839.0165461651749
+episode:60, reward:-63.932498568073456
+done
+done
+done
+done
+done
+done
+done
+done
+done
+done
+done
+episode:70, test_reward:799.3369609374465
+episode:70, reward:-61.03968546341641
+done
+done
+done
+done
+done
+done
+done
+done
+done
+done
+done
+episode:80, test_reward:813.7829435454291
+episode:80, reward:-54.817754419360746
+done
+done
+done
+done
+done
+done
+done
+done
+done
+done
+done
+episode:90, test_reward:831.1473324992801
+episode:90, reward:-53.50501065429732
+done
+done
+done
+done
+done
+done
+done
+done
+done
+done
+done
+episode:100, test_reward:797.8234582854212
+episode:100, reward:-51.303319276208185
+done
+done
+done
+done
+done
+next_agent##################################################
+done
+done
+done
+done
+done
+803.0878482905903 3534.0197139962534
