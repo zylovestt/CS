@@ -1,9 +1,11 @@
+from tkinter.tix import Tree
 import torch
 import torch.nn.functional as FU
 import torch.nn.utils as nn_utils
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import AGENT_NET
+from TEST import model_test
 
 class ActorCritic_Double:
     def __init__(self,input_shape:tuple,num_subtasks,lr,weights,gamma,device,clip_grad,beta,n_steps,mode,labda):
@@ -209,6 +211,10 @@ class ActorCritic_Double_softmax:
         self.epopri_loss=[]
         self.agent_loss=[]
         self.ac_loss=[]
+        self.local_update=True
+    
+    def set_nolocal_update(self):
+        self.local_update=False
     
     def take_action(self,state):
         F=lambda x:torch.tensor(x,dtype=torch.float).to(self.device)
@@ -290,11 +296,13 @@ class ActorCritic_Double_softmax:
         self.agent_loss.append(agent_loss.item())
         if torch.isnan(agent_loss)>0:
             print("agent_loss_here!")
-        self.agent_optimizer.zero_grad()
+        if self.local_update:
+            self.agent_optimizer.zero_grad()
         agent_loss.backward()
         if not self.clip_grad=='max':
             nn_utils.clip_grad_norm_(self.agent.parameters(),self.clip_grad)
-        self.agent_optimizer.step()  # 更新策略网络的参数
+        if self.local_update:
+            self.agent_optimizer.step()  # 更新策略网络的参数
         self.writer.add_scalar(tag='cri_loss',scalar_value=self.cri_loss[-1],global_step=self.step)
         self.writer.add_scalar(tag='act_loss',scalar_value=self.act_loss[-1],global_step=self.step)
         self.writer.add_scalar(tag='eposub_loss',scalar_value=self.eposub_loss[-1],global_step=self.step)
@@ -319,6 +327,10 @@ class ActorCritic_Double_softmax:
                 kl+=-((p_new/p_old).log()*p_old).sum(dim=1).mean().item()
         self.writer.add_scalar(tag="kl", scalar_value=kl, global_step=self.step)
         self.step+=1
+        grads = [param.grad.data.cpu().numpy()
+                if param.grad is not None else None
+                for param in self.agent.parameters()]
+        return grads
     
     def calculate_probs(self,out_puts,actions):
         out_puts=tuple([FU.softmax(x,dim=1) for x in out_puts[i]] for i in range(2))
@@ -371,3 +383,56 @@ class ActorCritic_Double_softmax:
     def cal_gce(self,rewards,states,next_states,overs):
         r=rewards+self.gamma*self.agent(next_states)[1]*(1-overs)-self.agent(states)[1]
         return self.cal_(r,0,self.gamma*self.labda)
+
+class A3C_worker(ActorCritic_Double_softmax):
+    def __init__(self,input_shape:tuple,num_subtasks,lr,weights,gamma,device,clip_grad,beta,n_steps,mode,labda,proc_name,train_queue,env,num_episodes,max_steps,net):
+        super().__init__(input_shape,num_subtasks,lr,weights,gamma,device,clip_grad,beta,n_steps,mode,labda)
+        self.writer=SummaryWriter(comment='A3C_worker'+proc_name)
+        self.agent=net
+        self.train_queue=train_queue
+        self.env=env
+        self.num_episodes=num_episodes
+        self.max_steps=max_steps
+        super().set_nolocal_update()
+    
+    def upload(self):
+        writer=self.writer
+        env=self.env
+        return_list=[]
+        done=False
+        state=env.reset()
+        episode_return=0
+        i_episode=0
+        while i_episode<self.num_episodes:
+            transition_dict = {'states': [], 'actions': [], 'next_states': [], 'rewards': [], 'dones': [], 'overs': []}
+            step=0
+            #print('NEW START')
+            while not done and step<self.max_steps:
+                step+=1
+                action = self.take_action(state)
+                #print_state(env.env_agent)
+                #print('action: \n',action)
+                next_state, reward, done, over, _ = env.step(action)
+                #print('reward: ',reward)
+                transition_dict['states'].append(state)
+                transition_dict['actions'].append(action)
+                transition_dict['next_states'].append(next_state)
+                transition_dict['rewards'].append(reward)
+                transition_dict['dones'].append(done)
+                transition_dict['overs'].append(over)
+                state = next_state
+                episode_return += reward
+            if done:
+                state = env.reset()
+                done = False
+                return_list.append(episode_return)
+                writer.add_scalar(tag='return',scalar_value=episode_return,global_step=i_episode)
+                episode_return = 0
+                i_episode+=1
+                if (i_episode % 10 == 0):
+                    test_reward=model_test(env,self,1,1)
+                    print('episode:{}, test_reward:{}'.format(i_episode,test_reward))
+                    writer.add_scalar('test_reward',test_reward,i_episode)
+                    print('episode:{}, reward:{}'.format(i_episode,np.mean(return_list[-10:])))
+            grads=self.update(transition_dict)
+            self.train_queue.put(grads)
