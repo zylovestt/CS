@@ -10,10 +10,10 @@ from TEST import model_test
 np.random.seed(1)
 torch.manual_seed(0)
 lr = 1*1e-4
-num_episodes = 10
+num_episodes = 100
 gamma = 0.98
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-#device = torch.device("cpu")
+device = torch.device("cpu")
 
 '''F,Q,er,econs,rcons,B,p,g,d,w,alpha,twe,ler'''
 np.set_printoptions(2)
@@ -44,7 +44,7 @@ pro_dic['w']=1
 pro_dic['alpha']=2
 pro_dic['twe']=(0,0)
 pro_dic['ler']=(0,0)
-num_pros=100
+num_pros=10
 pro_dics=[CS_ENV.fpro_config(pro_dic) for _ in range(num_pros)]
 task_dic={}
 task_dic['ez']=(10,20)
@@ -74,7 +74,7 @@ state=env.reset()
 
 w=(state[0].shape,state[1].shape)
 agent=AC.ActorCritic_Double_softmax(w,maxnum_tasks,lr,1,gamma,device,
-    clip_grad='max',beta=0,n_steps=4,mode='gce',labda=0.95)
+    clip_grad=1e-2,beta=0,n_steps=4,mode='gce',labda=0.95)
 logger = Logger('AC_'+str(agent.mode)+'_'+str(lr)+'.log')
 rl_utils.train_on_policy_agent(env,agent,num_episodes,10)
 torch.save(agent.agent.state_dict(), "./data/model_parameter.pkl")
