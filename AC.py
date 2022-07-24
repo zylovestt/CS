@@ -385,15 +385,10 @@ class ActorCritic_Double_softmax:
         r=rewards+self.gamma*self.agent(next_states)[1]*(1-overs)-self.agent(states)[1]
         return self.cal_(r,0,self.gamma*self.labda)
 
-class ActorCritic_Double_softmax33:
-    def __init__(self,input_shape:tuple,num_subtasks,lr,weights,gamma,device,clip_grad,beta,n_steps,mode,labda):
-        #self.writer=SummaryWriter(comment='AC')
+class ActorCritic_Double_softmax_worker:
+    def __init__(self,input_shape,num_subtasks,weights,gamma,device,clip_grad,beta,n_steps,mode,labda,proc_name):
+        self.writer=SummaryWriter(comment='A3C'+proc_name)
         self.step=0
-        self.agent=AGENT_NET.DoubleNet_softmax(input_shape,num_subtasks).to(device)
-        #self.agent_optimizer=torch.optim.Adam(self.agent.parameters(),lr=lr,eps=1e-3)
-        #self.agent_optimizer=torch.optim.SGD(self.agent.parameters(),lr=lr,momentum=0.9)
-        #self.agent_optimizer=torch.optim.NAdam(self.agent.parameters(),lr=lr,eps=1e-8)
-        #self.input_shape=input_shape
         self.num_processors=input_shape[0][2]
         self.num_subtasks=num_subtasks
         self.gamma=gamma
@@ -425,13 +420,9 @@ class ActorCritic_Double_softmax33:
         for i in state[1]:
             i[:]=(i-i.mean())/i.std()
         (probs_subtasks_orginal,probs_prior_orginal),_=self.agent(state)
-        '''probs_subtasks_orginal*=[x*y
-            for x,y in zip(probs_subtasks_orginal,state[0][0,0,:,-self.num_subtasks:].T)]'''
         action_subtasks=[]
         for x in probs_subtasks_orginal:
             action_subtasks.append(torch.distributions.Categorical(logits=x).sample().item())
-        '''action_subtasks=[torch.distributions.Categorical(x).sample().item()
-            for x in probs_subtasks_orginal]'''
 
         action_prior=[]
         probs_prior_orginal=torch.cat(probs_prior_orginal,0)
@@ -465,7 +456,6 @@ class ActorCritic_Double_softmax33:
             i[:]=(i-i.mean())/i.std()
         overs=F(transition_dict['overs']).view(-1,1)
         # 时序差分目标
-        #td_target=rewards+self.gamma*self.agent(next_states)[1]*(1-dones)
         if self.mode=='n_steps':
             F_td=self.cal_nsteps
         elif self.mode=='n_steps_all':
@@ -477,7 +467,6 @@ class ActorCritic_Double_softmax33:
         self.ac_loss.append(td_delta.mean().item())
         b_probs=self.agent(states)[0]
         s=0
-        #probs=(probs[0]+1e-10,probs[1]+1e-10)
         for prob in b_probs[0]:
             s+=(FU.softmax(prob,dim=1)*FU.log_softmax(prob,dim=1)).sum(dim=1)
         t=0
@@ -508,12 +497,12 @@ class ActorCritic_Double_softmax33:
             nn_utils.clip_grad_norm_(self.agent.parameters(),self.clip_grad)
         if self.local_update:
             self.agent_optimizer.step()  # 更新策略网络的参数
-        '''self.writer.add_scalar(tag='cri_loss',scalar_value=self.cri_loss[-1],global_step=self.step)
+        self.writer.add_scalar(tag='cri_loss',scalar_value=self.cri_loss[-1],global_step=self.step)
         self.writer.add_scalar(tag='act_loss',scalar_value=self.act_loss[-1],global_step=self.step)
         self.writer.add_scalar(tag='eposub_loss',scalar_value=self.eposub_loss[-1],global_step=self.step)
         self.writer.add_scalar(tag='epopri_loss',scalar_value=self.epopri_loss[-1],global_step=self.step)
         self.writer.add_scalar(tag='ac_loss',scalar_value=self.ac_loss[-1],global_step=self.step)
-        self.writer.add_scalar(tag='agent_loss',scalar_value=self.agent_loss[-1],global_step=self.step)'''
+        self.writer.add_scalar(tag='agent_loss',scalar_value=self.agent_loss[-1],global_step=self.step)
         grad_max = 0.0
         grad_means = 0.0
         grad_count = 0
@@ -521,8 +510,8 @@ class ActorCritic_Double_softmax33:
             grad_max = max(grad_max, p.grad.abs().max().item())
             grad_means += (p.grad ** 2).mean().sqrt().item()
             grad_count += 1
-        '''self.writer.add_scalar('grad_l2', grad_means / grad_count, self.step)
-        self.writer.add_scalar('grad_max', grad_max, self.step)'''
+        self.writer.add_scalar('grad_l2', grad_means / grad_count, self.step)
+        self.writer.add_scalar('grad_max', grad_max, self.step)
         b_probs_new=self.agent(states)[0]
         probs_new=tuple([FU.softmax(x,dim=1)+1e-14 for x in b_probs_new[i]] for i in range(2))
         probs=tuple([FU.softmax(x,dim=1)+1e-14 for x in b_probs[i]] for i in range(2))
@@ -530,7 +519,7 @@ class ActorCritic_Double_softmax33:
         for i in range(2):
             for p_old,p_new in zip(probs[i],probs_new[i]):
                 kl+=-((p_new/p_old).log()*p_old).sum(dim=1).mean().item()
-        '''self.writer.add_scalar(tag="kl", scalar_value=kl, global_step=self.step)'''
+        self.writer.add_scalar(tag="kl", scalar_value=kl, global_step=self.step)
         self.step+=1
         grads = [param.grad.data.cpu().numpy()
                 if param.grad is not None else None
@@ -589,108 +578,3 @@ class ActorCritic_Double_softmax33:
     def cal_gce(self,rewards,states,next_states,overs):
         r=rewards+self.gamma*self.agent(next_states)[1]*(1-overs)-self.agent(states)[1]
         return self.cal_(r,0,self.gamma*self.labda)
-
-def data_proc(proc_name,worker,env,net,train_queue,num_episodes,max_steps):
-    print('net:',id(net))
-    print('env:',id(env))
-    print('num_episodes:',id(num_episodes))
-    #worker.writer=SummaryWriter(comment='A3C_worker'+proc_name)
-    worker.agent=dp(net)
-    worker.env=dp(env)
-    worker.num_episodes=num_episodes
-    worker.max_steps=max_steps
-    worker.set_nolocal_update()
-
-    #writer=worker.writer
-    env=worker.env
-    return_list=[]
-    done=False
-    state=env.reset()
-    episode_return=0
-    i_episode=0
-    while i_episode<worker.num_episodes:
-        transition_dict = {'states': [], 'actions': [], 'next_states': [], 'rewards': [], 'dones': [], 'overs': []}
-        step=0
-        #print('NEW START')
-        while not done and step<worker.max_steps:
-            step+=1
-            action = worker.take_action(state)
-            #print_state(env.env_agent)
-            #print('action: \n',action)
-            next_state, reward, done, over, _ = env.step(action)
-            #print('reward: ',reward)
-            transition_dict['states'].append(state)
-            transition_dict['actions'].append(action)
-            transition_dict['next_states'].append(next_state)
-            transition_dict['rewards'].append(reward)
-            transition_dict['dones'].append(done)
-            transition_dict['overs'].append(over)
-            state = next_state
-            episode_return += reward
-        if done:
-            state = env.reset()
-            done = False
-            return_list.append(episode_return)
-            #writer.add_scalar(tag='return',scalar_value=episode_return,global_step=i_episode)
-            episode_return = 0
-            i_episode+=1
-            if (i_episode % 10 == 0):
-                test_reward=model_test(env,worker,1,1)
-                print('episode:{}, test_reward:{}'.format(i_episode,test_reward))
-                #writer.add_scalar('test_reward',test_reward,i_episode)
-                print('episode:{}, reward:{}'.format(i_episode,np.mean(return_list[-10:])))
-        grads=worker.update(transition_dict)
-        train_queue.put(grads)
-
-class A3C_worker(ActorCritic_Double_softmax):
-    def __init__(self,input_shape:tuple,num_subtasks,lr,weights,gamma,device,clip_grad,beta,n_steps,mode,labda,proc_name,train_queue,env,num_episodes,max_steps,net):
-        super().__init__(input_shape,num_subtasks,lr,weights,gamma,device,clip_grad,beta,n_steps,mode,labda)
-        self.writer=SummaryWriter(comment='A3C_worker'+proc_name)
-        self.agent=net
-        self.train_queue=train_queue
-        self.env=env
-        self.num_episodes=num_episodes
-        self.max_steps=max_steps
-        super().set_nolocal_update()
-    
-    def upload(self):
-        writer=self.writer
-        env=self.env
-        return_list=[]
-        done=False
-        state=env.reset()
-        episode_return=0
-        i_episode=0
-        while i_episode<self.num_episodes:
-            transition_dict = {'states': [], 'actions': [], 'next_states': [], 'rewards': [], 'dones': [], 'overs': []}
-            step=0
-            #print('NEW START')
-            while not done and step<self.max_steps:
-                step+=1
-                action = self.take_action(state)
-                #print_state(env.env_agent)
-                #print('action: \n',action)
-                next_state, reward, done, over, _ = env.step(action)
-                #print('reward: ',reward)
-                transition_dict['states'].append(state)
-                transition_dict['actions'].append(action)
-                transition_dict['next_states'].append(next_state)
-                transition_dict['rewards'].append(reward)
-                transition_dict['dones'].append(done)
-                transition_dict['overs'].append(over)
-                state = next_state
-                episode_return += reward
-            if done:
-                state = env.reset()
-                done = False
-                return_list.append(episode_return)
-                writer.add_scalar(tag='return',scalar_value=episode_return,global_step=i_episode)
-                episode_return = 0
-                i_episode+=1
-                if (i_episode % 10 == 0):
-                    test_reward=model_test(env,self,1,1)
-                    print('episode:{}, test_reward:{}'.format(i_episode,test_reward))
-                    writer.add_scalar('test_reward',test_reward,i_episode)
-                    print('episode:{}, reward:{}'.format(i_episode,np.mean(return_list[-10:])))
-            grads=self.update(transition_dict)
-            self.train_queue.put(grads)

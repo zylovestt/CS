@@ -16,53 +16,10 @@ done
 done
 done
 done
+next_agent##################################################
 done
 done
 done
 done
 done
-done
-episode:20, test_reward:1532.9902747651497
-episode:20, reward:-129.96773141726007
-done
-done
-done
-done
-done
-done
-done
-done
-done
-done
-done
-episode:30, test_reward:1552.2173049615938
-episode:30, reward:-117.1766887582555
-done
-done
-done
-done
-done
-done
-done
-done
-done
-done
-done
-episode:40, test_reward:1499.0945645509764
-episode:40, reward:-118.38659315874713
-done
-done
-done
-done
-done
-done
-done
-done
-done
-done
-done
-episode:50, test_reward:1662.2347306245174
-episode:50, reward:-116.44002972170051
-done
-done
-done
+1768.08819589706 2771.047428673104
