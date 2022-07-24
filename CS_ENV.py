@@ -39,7 +39,7 @@ def floc_config():
     def generate(num_pros,maxnum_tasks):
         num_pro_choices=np.random.randint(1,num_pros+1,maxnum_tasks)
         loc=np.zeros((num_pros,maxnum_tasks),dtype='float')
-        loc[:]=-1e-10
+        loc[:]=1e-4
         for i in range(maxnum_tasks):
             num_pro_choice=num_pro_choices[i]
             pro_choice=np.random.choice(np.arange(num_pros,dtype='int'),num_pro_choice,False)
@@ -184,6 +184,7 @@ class CSENV:
         self.job_config=job_config
         self.loc_config=loc_config
         self.maxnum_tasks=maxnum_tasks
+        self.num_pros=len(pro_configs)
         #self.processor=PROCESSORS(pro_configs)
         #self.job=JOB(maxnum_tasks,task_configs,job_config)
         self.lams=lams
@@ -210,6 +211,7 @@ class CSENV:
                 break
         num_tasks=i if not rz else i+1
         task_loc=self.loc_config(self.processor.num_pros,self.job.maxnum_tasks)
+        self.task_loc=task_loc
         pro_status=[]
         for pro in self.processor.pros:
             items=[value for k,value in pro.pro_dic.items() if not callable(value) and not k=='F']
@@ -225,6 +227,9 @@ class CSENV:
         return pro_status,task_status
 
     def accept(self,action:np.ndarray):
+        choice_prob=np.prod(self.task_loc[action[0],range(self.maxnum_tasks)])
+        if choice_prob<0.5:
+            print('wrong_choice')
         R=self.processor(self.tin,self.tasks,action,self.womiga,self.sigma)
         t,s=0,0
         for k,value in self.tar_dic.items():

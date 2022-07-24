@@ -492,13 +492,18 @@ class ActorCritic_Double_softmax33:
         # 均方误差损失函数
         critic_loss=torch.mean(FU.mse_loss(self.agent(states)[1], td_target.detach()))
         self.cri_loss.append(critic_loss.item())
-        agent_loss=epo_loss+actor_loss+self.weights*critic_loss
+        agent_loss=actor_loss+self.weights*critic_loss
+        if self.beta:
+            agent_loss+=epo_loss
         self.agent_loss.append(agent_loss.item())
         if torch.isnan(agent_loss) or torch.isinf(agent_loss)>0:
             print("agent_loss_here!")
         if self.local_update:
             self.agent_optimizer.zero_grad()
+        
+        self.agent.zero_grad()
         agent_loss.backward()
+
         if not self.clip_grad=='max':
             nn_utils.clip_grad_norm_(self.agent.parameters(),self.clip_grad)
         if self.local_update:
@@ -541,9 +546,6 @@ class ActorCritic_Double_softmax33:
                 if tt.item()==0:
                     print('prob_sub is zero')
             probs*=t
-        '''F=lambda i:torch.gather(out_puts[0][i],1,actions[0][:,[i]])*F(i+1)\
-            if i<self.num_subtasks else 1.0
-        probs=F(0)'''
         for i in range(self.num_subtasks-1):
             t=torch.gather(out_puts[1][i],1,actions[1][:,[i]])
             u=out_puts[1][i].sum(axis=1,keepdim=True)
@@ -555,11 +557,6 @@ class ActorCritic_Double_softmax33:
                 if tt.item()==0:
                     print('prob_prior_fm is zero')
             probs*=t/(u-s)
-        '''G=lambda i:((torch.gather(out_puts[1][i],1,actions[1][:,[i]])+1e-7)
-            /(out_puts[1][i].sum(axis=1,keepdim=True)
-                -torch.gather(out_puts[1][i],1,actions[1][:,:i]).sum(axis=1,keepdim=True)+1e-7)*G(i+1)
-            if i<self.num_subtasks else 1.0)
-        probs*=G(0)'''
         return probs
 
     def cal_nsteps(self,rewards,states,next_states,overs):

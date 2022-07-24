@@ -9,8 +9,8 @@ done
 done
 done
 done
-episode:10, test_reward:1331.3744684599585
-episode:10, reward:-149.18633384502866
+episode:10, test_reward:1555.7756099060923
+episode:10, reward:-200.76068013941557
 done
 done
 done
@@ -22,8 +22,8 @@ done
 done
 done
 done
-episode:20, test_reward:1120.9641226007698
-episode:20, reward:-85.80335752711797
+episode:20, test_reward:1532.9902747651497
+episode:20, reward:-129.96773141726007
 done
 done
 done
@@ -35,8 +35,8 @@ done
 done
 done
 done
-episode:30, test_reward:1023.2058426738555
-episode:30, reward:-75.56206398570683
+episode:30, test_reward:1552.2173049615938
+episode:30, reward:-117.1766887582555
 done
 done
 done
@@ -48,6 +48,21 @@ done
 done
 done
 done
-episode:40, test_reward:1056.6114894296468
-episode:40, reward:-75.05384185560995
+episode:40, test_reward:1499.0945645509764
+episode:40, reward:-118.38659315874713
+done
+done
+done
+done
+done
+done
+done
+done
+done
+done
+done
+episode:50, test_reward:1662.2347306245174
+episode:50, reward:-116.44002972170051
+done
+done
 done
