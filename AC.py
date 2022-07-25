@@ -9,13 +9,13 @@ from TEST import model_test
 from copy import deepcopy as dp
 
 class ActorCritic_Double:
-    def __init__(self,input_shape:tuple,num_subtasks,lr,weights,gamma,device,clip_grad,beta,n_steps,mode,labda):
+    def __init__(self,input_shape:tuple,num_subtasks,lr,weights,gamma,device,clip_grad,beta,n_steps,mode,labda,eps):
         self.writer=SummaryWriter(comment='AC')
         self.step=0
         self.agent=AGENT_NET.DoubleNet(input_shape,num_subtasks).to(device)
         #self.agent_optimizer=torch.optim.Adam(self.agent.parameters(),lr=lr,eps=1e-3)
         #self.agent_optimizer=torch.optim.SGD(self.agent.parameters(),lr=lr,momentum=0.9)
-        self.agent_optimizer=torch.optim.NAdam(self.agent.parameters(),lr=lr,eps=1e-8)
+        self.agent_optimizer=torch.optim.NAdam(self.agent.parameters(),lr=lr,eps=eps)
         #self.input_shape=input_shape
         self.num_processors=input_shape[0][2]
         self.num_subtasks=num_subtasks
@@ -187,13 +187,13 @@ class ActorCritic_Double:
         return self.cal_(r,0,self.gamma*self.labda)
 
 class ActorCritic_Double_softmax:
-    def __init__(self,input_shape:tuple,num_subtasks,lr,weights,gamma,device,clip_grad,beta,n_steps,mode,labda):
+    def __init__(self,input_shape:tuple,num_subtasks,lr,weights,gamma,device,clip_grad,beta,n_steps,mode,labda,eps):
         self.writer=SummaryWriter(comment='AC')
         self.step=0
         self.agent=AGENT_NET.DoubleNet_softmax(input_shape,num_subtasks).to(device)
         #self.agent_optimizer=torch.optim.Adam(self.agent.parameters(),lr=lr,eps=1e-3)
         #self.agent_optimizer=torch.optim.SGD(self.agent.parameters(),lr=lr,momentum=0.9)
-        self.agent_optimizer=torch.optim.NAdam(self.agent.parameters(),lr=lr,eps=1e-8)
+        self.agent_optimizer=torch.optim.NAdam(self.agent.parameters(),lr=lr,eps=eps)
         #self.input_shape=input_shape
         self.num_processors=input_shape[0][2]
         self.num_subtasks=num_subtasks

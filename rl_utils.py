@@ -4,6 +4,7 @@ import collections
 import ENV_AGENT
 import random
 from TEST import model_test
+import time
 from torch.utils.tensorboard import SummaryWriter
 
 class ReplayBuffer:
@@ -29,8 +30,10 @@ def moving_average(a, window_size):
     end = (np.cumsum(a[:-window_size:-1])[::2] / r)[::-1]
     return np.concatenate((begin, middle, end))
 
-def train_on_policy_agent(env, agent, num_episodes,max_steps):
+def train_on_policy_agent(env, agent, num_episodes,max_steps,cycles):
     writer=agent.writer
+    frame_idx=0
+    ts_time=time.time()
     return_list = []
     done=False
     state = env.reset()
@@ -42,6 +45,7 @@ def train_on_policy_agent(env, agent, num_episodes,max_steps):
         #print('NEW START')
         while not done and step<max_steps:
             step+=1
+            frame_idx+=1
             action = agent.take_action(state)
             #print_state(env.env_agent)
             #print('action: \n',action)
@@ -56,17 +60,19 @@ def train_on_policy_agent(env, agent, num_episodes,max_steps):
             state = next_state
             episode_return += reward
         if done:
-            state = env.reset()
-            done = False
             return_list.append(episode_return)
             writer.add_scalar(tag='return',scalar_value=episode_return,global_step=i_episode)
-            episode_return = 0
             i_episode+=1
-            if (i_episode % 10 == 0):
-                test_reward=model_test(env,agent,1,1)
-                print('episode:{}, test_reward:{}'.format(i_episode,test_reward))
-                writer.add_scalar('test_reward',test_reward,i_episode)
-                print('episode:{}, reward:{}'.format(i_episode,np.mean(return_list[-10:])))
+            if (i_episode % cycles == 0):
+                print('speed:{}'.format(frame_idx/(time.time()-ts_time)))
+                frame_idx,ts_time=0,time.time()
+                #test_reward=model_test(env,agent,1,1)
+                #print('episode:{}, test_reward:{}'.format(i_episode,test_reward))
+                #writer.add_scalar('test_reward',test_reward,i_episode)
+                print('episode:{}, reward:{}'.format(i_episode,np.mean(return_list[-cycles:])))
+            state = env.reset()
+            done = False
+            episode_return = 0
         agent.update(transition_dict)
     writer.close()
     return return_list

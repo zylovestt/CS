@@ -10,15 +10,17 @@ import time
 import os
 
 LR=1e-4
-NUM_EPISODES=100
-MAX_STEPS=4
+NUM_EPISODES=200
+MAX_STEPS=10
 NUM_PROCS=2
-NUM_ENVS=8
-QUEUE_SIZE=4
+NUM_ENVS=2
+QUEUE_SIZE=2
 TRAIN_BATCH=2
-NUM_PROCESSORS=100
-MAXNUM_TASKS=10
-GAMMA = 0.98
+NUM_PROCESSORS=10
+MAXNUM_TASKS=4
+GAMMA = 0.99
+EPS=1e-8
+SEED=[i for i in range(10) for _ in range(20)]
 np.random.seed(1)
 torch.manual_seed(0)
 np.set_printoptions(2)
@@ -62,17 +64,18 @@ job_d['num']=(1,MAXNUM_TASKS)
 job_dic=CS_ENV.fjob_config(job_d)
 loc_config=CS_ENV.floc_config()
 z=['Q','T','C','F']
-lams={x:1 for x in z}
-lams['Q']=-1
-lams['F']=-1
-lams['C']=1
+lams={}
+lams['T']=1*1e-2
+lams['Q']=-1*1e-2
+lams['F']=-1*1e-2
+lams['C']=1*1e-2
 bases={x:1 for x in z}
 bases['T']=15
 bases['Q']=-1
 bases['C']=10
 env_c=CS_ENV.CSENV(pro_dics,MAXNUM_TASKS,task_dics,
-        job_dic,loc_config,lams,100,bases)
-env_c.set_random_const_()
+        job_dic,loc_config,lams,100,bases,SEED)
+#env_c.set_random_const_()
 state=env_c.reset()
 W=(state[0].shape,state[1].shape)
 
@@ -82,7 +85,7 @@ def data_func(proc_name,net, device, train_queue):
     ts_time=time.time()
 
     f_env=lambda:CS_ENV.CSENV(pro_dics,MAXNUM_TASKS,task_dics,
-        job_dic,loc_config,lams,100,bases)
+        job_dic,loc_config,lams,100,bases,SEED)
 
     '''input_shape,num_subtasks,weights,gamma,device,clip_grad,beta,n_steps,mode,labda,proc_name'''
     worker=AC.ActorCritic_Double_softmax_worker(W,MAXNUM_TASKS,1,GAMMA,device,
@@ -92,7 +95,7 @@ def data_func(proc_name,net, device, train_queue):
     envs=[f_env() for _ in range(NUM_ENVS)]
     for i,env in enumerate(envs):
         env.name=proc_name+' '+str(i)
-        env.set_random_const_()
+        #env.set_random_const_()
 
     worker.set_nolocal_update()
 
@@ -120,19 +123,19 @@ def data_func(proc_name,net, device, train_queue):
                 state[i] = next_state
                 episode_return[i] += reward
             if done:
-                state[i] = env.reset()
-                done = False
                 return_list.append(episode_return[i])
                 worker.writer.add_scalar(tag='return',scalar_value=episode_return[i],global_step=i_episode)
-                episode_return[i] = 0
                 i_episode+=1
                 if (i_episode % 10 == 0):
                     print('{}: speed:{}'.format(proc_name,frame_idx/(time.time()-ts_time)))
                     frame_idx,ts_time=0,time.time()
-                    test_reward=model_test(env,worker,1,1)
-                    print('{}: episode:{} test_reward:{}'.format(proc_name,i_episode,test_reward))
-                    worker.writer.add_scalar('test_reward',test_reward,i_episode)
+                    #test_reward=model_test(env,worker,1,1)
+                    #print('{}: episode:{} test_reward:{}'.format(proc_name,i_episode,test_reward))
+                    #worker.writer.add_scalar('test_reward',test_reward,i_episode)
                     print('{}: episode:{} reward:{}'.format(proc_name,i_episode,np.mean(return_list[-10:])))
+                state[i] = env.reset()
+                done = False
+                episode_return[i] = 0
             grads_l.append(worker.update(transition_dict))
         for k in range(1,NUM_ENVS):
             for grad0,gradk in zip(grads_l[0],grads_l[k]):
@@ -151,7 +154,7 @@ if __name__=='__main__':
     train_queue=mp.Queue(QUEUE_SIZE)
     net=AGENT_NET.DoubleNet_softmax(W,MAXNUM_TASKS).to(device)
     net.share_memory()
-    optimizer=torch.optim.NAdam(net.parameters(),lr=LR,eps=1e-8)
+    optimizer=torch.optim.NAdam(net.parameters(),lr=LR,eps=EPS)
     
     data_proc_list = []
     for proc_idx in range(NUM_PROCS):
@@ -193,8 +196,10 @@ if __name__=='__main__':
     f_worker=AC.ActorCritic_Double_softmax_worker(W,MAXNUM_TASKS,1,GAMMA,device,
             clip_grad='max',beta=0,n_steps=0,mode='gce',labda=0.95,proc_name='finally')
     f_worker.agent=net
-    l1=model_test(env_c,f_worker,5,1)
+    l1=model_test(env_c,f_worker,10,1)
     print('next_agent##################################################')
     r_agent=CS_ENV.RANDOM_AGENT(MAXNUM_TASKS)
-    l2=model_test(env_c,r_agent,5,1)
+    l2=model_test(env_c,r_agent,10,1)
     print(l1,l2)
+    torch.save(net.state_dict(), "./data/CS_A3C_model_parameter.pkl")
+'''30.085082623437224 48.83124857335235'''

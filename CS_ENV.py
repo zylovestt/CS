@@ -178,7 +178,7 @@ class CSENV:
     name=0
     def __init__(self,pro_configs:list,maxnum_tasks:int,
         task_configs:list,job_config:dict,loc_config,
-        lams:dict,maxnum_episode:int,bases:dict):
+        lams:dict,maxnum_episode:int,bases:dict,seed:list):
         '''lams:Q,T,C,F'''
         self.name+=1
         self.pro_configs=pro_configs
@@ -203,12 +203,14 @@ class CSENV:
         self.maxnum_episode=maxnum_episode
         self.set_random_const=False
         self.train=True
+        self.seed=seed
+        self.seedid=0
     
     def send(self):
         self.tin,self.tasks,self.womiga,self.sigma=self.job()
-        for i,rz in enumerate(self.tasks['rz']):
+        '''for i,rz in enumerate(self.tasks['rz']):
             if not rz:
-                break
+                break'''
         task_loc=self.loc_config(self.processor.num_pros,self.job.maxnum_tasks)
         self.task_loc=task_loc
         pro_status=[]
@@ -228,7 +230,7 @@ class CSENV:
     def accept(self,action:np.ndarray):
         choice_prob=np.prod(self.task_loc[action[0],range(self.maxnum_tasks)])
         if choice_prob<0.5:
-            print(self.name+' wrong_choice')
+            print(str(self.name)+' wrong_choice')
         R=self.processor(self.tin,self.tasks,action,self.womiga,self.sigma)
         t,s=0,0
         for k,value in self.tar_dic.items():
@@ -241,12 +243,14 @@ class CSENV:
         self.sum_tarb.append(s)
     
     def set_random_const_(self):
-        self.set_random_const=1
+        self.set_random_const=True
 
     def reset(self):
         self.over=0
         self.done=0
         self.num_steps=0
+        np.random.seed(self.seed[self.seedid%len(self.seed)])
+        self.seedid+=1
         if self.set_random_const:
             np.random.seed(1)
         self.processor=PROCESSORS(self.pro_configs)

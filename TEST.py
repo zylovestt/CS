@@ -5,7 +5,7 @@ def model_test(env,agent,num_episodes,seed):
     return_list = []
     #num_subtasks=env.num_subtasks
     np.random.seed(seed)
-    for i in range(num_episodes):
+    for _ in range(num_episodes):
         episode_return = 0
         state = env.reset()
         done = 0
