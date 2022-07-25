@@ -175,18 +175,18 @@ class JOB:
         return self.tin,tasks,womiga,sigma
 
 class CSENV:
+    name=0
     def __init__(self,pro_configs:list,maxnum_tasks:int,
         task_configs:list,job_config:dict,loc_config,
         lams:dict,maxnum_episode:int,bases:dict):
         '''lams:Q,T,C,F'''
+        self.name+=1
         self.pro_configs=pro_configs
         self.task_configs=task_configs
         self.job_config=job_config
         self.loc_config=loc_config
         self.maxnum_tasks=maxnum_tasks
         self.num_pros=len(pro_configs)
-        #self.processor=PROCESSORS(pro_configs)
-        #self.job=JOB(maxnum_tasks,task_configs,job_config)
         self.lams=lams
         self.bases=bases
         self.tar_dic,self.tarb_dic={},{}
@@ -209,7 +209,6 @@ class CSENV:
         for i,rz in enumerate(self.tasks['rz']):
             if not rz:
                 break
-        num_tasks=i if not rz else i+1
         task_loc=self.loc_config(self.processor.num_pros,self.job.maxnum_tasks)
         self.task_loc=task_loc
         pro_status=[]
@@ -229,7 +228,7 @@ class CSENV:
     def accept(self,action:np.ndarray):
         choice_prob=np.prod(self.task_loc[action[0],range(self.maxnum_tasks)])
         if choice_prob<0.5:
-            print('wrong_choice')
+            print(self.name+' wrong_choice')
         R=self.processor(self.tin,self.tasks,action,self.womiga,self.sigma)
         t,s=0,0
         for k,value in self.tar_dic.items():
@@ -263,7 +262,7 @@ class CSENV:
         self.num_steps+=1
         if self.num_steps>self.maxnum_episode:
             self.done=1
-            print('done')
+            print(str(self.name)+' done')
         return self.send(),reward,self.done,self.over,None
 
 class RANDOM_AGENT:

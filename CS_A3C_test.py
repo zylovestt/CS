@@ -4,23 +4,24 @@ import CS_ENV
 import AC
 import torch
 from TEST import model_test
-from PRINT import Logger
 import torch.multiprocessing as mp
 import AGENT_NET
+import time
 import os
 
+LR=1e-4
+NUM_EPISODES=100
+MAX_STEPS=4
+NUM_PROCS=2
+NUM_ENVS=8
+QUEUE_SIZE=4
+TRAIN_BATCH=2
+NUM_PROCESSORS=100
+MAXNUM_TASKS=10
+GAMMA = 0.98
 np.random.seed(1)
 torch.manual_seed(0)
 np.set_printoptions(2)
-lr = 1*1e-4
-num_episodes = 10
-max_steps=10
-num_procs=4
-queue_size=4
-train_batch=2
-num_pros=10
-maxnum_tasks=4
-gamma = 0.98
 pro_dic={}
 pro_dic['F']=(0.9,0.99)
 pro_dic['Q']=(0.7,1)
@@ -48,16 +49,16 @@ pro_dic['w']=1
 pro_dic['alpha']=2
 pro_dic['twe']=(0,0)
 pro_dic['ler']=(0,0)
-pro_dics=[CS_ENV.fpro_config(pro_dic) for _ in range(num_pros)]
+pro_dics=[CS_ENV.fpro_config(pro_dic) for _ in range(NUM_PROCESSORS)]
 task_dic={}
 task_dic['ez']=(10,20)
 task_dic['rz']=(10,20)
-task_dics=[CS_ENV.ftask_config(task_dic) for _ in range(maxnum_tasks)]
+task_dics=[CS_ENV.ftask_config(task_dic) for _ in range(MAXNUM_TASKS)]
 job_d={}
 job_d['time']=(1,9)
 job_d['womiga']=(0.5,1)
 job_d['sigma']=(0.5,1)
-job_d['num']=(1,maxnum_tasks)
+job_d['num']=(1,MAXNUM_TASKS)
 job_dic=CS_ENV.fjob_config(job_d)
 loc_config=CS_ENV.floc_config()
 z=['Q','T','C','F']
@@ -69,87 +70,91 @@ bases={x:1 for x in z}
 bases['T']=15
 bases['Q']=-1
 bases['C']=10
+env_c=CS_ENV.CSENV(pro_dics,MAXNUM_TASKS,task_dics,
+        job_dic,loc_config,lams,100,bases)
+env_c.set_random_const_()
+state=env_c.reset()
+W=(state[0].shape,state[1].shape)
 
 def data_func(proc_name,net, device, train_queue):
     '''F,Q,er,econs,rcons,B,p,g,d,w,alpha,twe,ler'''
-    env=CS_ENV.CSENV(pro_dics,maxnum_tasks,task_dics,
-        job_dic,loc_config,lams,100,bases)
-    env.set_random_const_()
-    state=env.reset()
+    frame_idx=0
+    ts_time=time.time()
 
-    w=(state[0].shape,state[1].shape)
+    f_env=lambda:CS_ENV.CSENV(pro_dics,MAXNUM_TASKS,task_dics,
+        job_dic,loc_config,lams,100,bases)
+
     '''input_shape,num_subtasks,weights,gamma,device,clip_grad,beta,n_steps,mode,labda,proc_name'''
-    worker=AC.ActorCritic_Double_softmax_worker(w,maxnum_tasks,1,gamma,device,
-        clip_grad='max',beta=0,n_steps=4,mode='gce',labda=0.95,proc_name=proc_name)
+    worker=AC.ActorCritic_Double_softmax_worker(W,MAXNUM_TASKS,1,GAMMA,device,
+        clip_grad='max',beta=1e-2,n_steps=4,mode='gce',labda=0.95,proc_name=proc_name)
 
     worker.agent=net
-    worker.env=env
-    worker.num_episodes=num_episodes
-    worker.max_steps=max_steps
+    envs=[f_env() for _ in range(NUM_ENVS)]
+    for i,env in enumerate(envs):
+        env.name=proc_name+' '+str(i)
+        env.set_random_const_()
+
     worker.set_nolocal_update()
 
-    env=worker.env
-    return_list=[]
     done=False
-    state=env.reset()
-    episode_return=0
+    state=[env.reset() for env in envs]
+    episode_return=[0 for _ in range(NUM_ENVS)]
+    return_list=[]
     i_episode=0
-    while i_episode<worker.num_episodes:
-        transition_dict = {'states': [], 'actions': [], 'next_states': [], 'rewards': [], 'dones': [], 'overs': []}
-        step=0
-        while not done and step<worker.max_steps:
-            step+=1
-            action = worker.take_action(state)
-            next_state, reward, done, over, _ = env.step(action)
-            transition_dict['states'].append(state)
-            transition_dict['actions'].append(action)
-            transition_dict['next_states'].append(next_state)
-            transition_dict['rewards'].append(reward)
-            transition_dict['dones'].append(done)
-            transition_dict['overs'].append(over)
-            state = next_state
-            episode_return += reward
-        if done:
-            state = env.reset()
-            done = False
-            return_list.append(episode_return)
-            worker.writer.add_scalar(tag='return',scalar_value=episode_return,global_step=i_episode)
-            episode_return = 0
-            i_episode+=1
-            if (i_episode % 10 == 0):
-                test_reward=model_test(env,worker,1,1)
-                print('episode:{}, test_reward:{}'.format(i_episode,test_reward))
-                worker.writer.add_scalar('test_reward',test_reward,i_episode)
-                print('episode:{}, reward:{}'.format(i_episode,np.mean(return_list[-10:])))
-        grads=worker.update(transition_dict)
-        train_queue.put(grads)
+    while i_episode<NUM_EPISODES:
+        grads_l=[]
+        for i,env in enumerate(envs):
+            transition_dict = {'states': [], 'actions': [], 'next_states': [], 'rewards': [], 'dones': [], 'overs': []}
+            step=0
+            while not done and step<MAX_STEPS:
+                step+=1
+                frame_idx+=1
+                action = worker.take_action(state[i])
+                next_state, reward, done, over, _ = env.step(action)
+                transition_dict['states'].append(state[i])
+                transition_dict['actions'].append(action)
+                transition_dict['next_states'].append(next_state)
+                transition_dict['rewards'].append(reward)
+                transition_dict['dones'].append(done)
+                transition_dict['overs'].append(over)
+                state[i] = next_state
+                episode_return[i] += reward
+            if done:
+                state[i] = env.reset()
+                done = False
+                return_list.append(episode_return[i])
+                worker.writer.add_scalar(tag='return',scalar_value=episode_return[i],global_step=i_episode)
+                episode_return[i] = 0
+                i_episode+=1
+                if (i_episode % 10 == 0):
+                    print('{}: speed:{}'.format(proc_name,frame_idx/(time.time()-ts_time)))
+                    frame_idx,ts_time=0,time.time()
+                    test_reward=model_test(env,worker,1,1)
+                    print('{}: episode:{} test_reward:{}'.format(proc_name,i_episode,test_reward))
+                    worker.writer.add_scalar('test_reward',test_reward,i_episode)
+                    print('{}: episode:{} reward:{}'.format(proc_name,i_episode,np.mean(return_list[-10:])))
+            grads_l.append(worker.update(transition_dict))
+        for k in range(1,NUM_ENVS):
+            for grad0,gradk in zip(grads_l[0],grads_l[k]):
+                grad0+=gradk
+        train_queue.put(grads_l[0])
     worker.writer.close()
     train_queue.put(None)
 
 if __name__=='__main__':
-    mp.set_start_method('spawn', force=True)
+    mp.set_start_method('spawn',force=True)
     os.environ['OMP_NUM_THREADS'] = "1"
     os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
-    lr = 1*1e-4
-    num_episodes = 4
-    gamma = 0.98
-    device = torch.device("cuda")
+    device = "cpu"
 
     '''F,Q,er,econs,rcons,B,p,g,d,w,alpha,twe,ler'''
-    env=CS_ENV.CSENV(pro_dics,maxnum_tasks,task_dics,
-        job_dic,loc_config,lams,100,bases)
-    env.set_random_const_()
-    state=env.reset()
-
-    w=(state[0].shape,state[1].shape)
-    
-    train_queue=mp.Queue(queue_size)
-    net=AGENT_NET.DoubleNet_softmax(w,maxnum_tasks).to(device)
+    train_queue=mp.Queue(QUEUE_SIZE)
+    net=AGENT_NET.DoubleNet_softmax(W,MAXNUM_TASKS).to(device)
     net.share_memory()
-    optimizer=torch.optim.NAdam(net.parameters(),lr=lr,eps=1e-8)
+    optimizer=torch.optim.NAdam(net.parameters(),lr=LR,eps=1e-8)
     
     data_proc_list = []
-    for proc_idx in range(num_procs):
+    for proc_idx in range(NUM_PROCS):
         args=(str(proc_idx), net, device, train_queue)
         p = mp.Process(target=data_func,args=args)
         p.start()
@@ -174,10 +179,10 @@ if __name__=='__main__':
                                             train_entry):
                     tgt_grad += grad
 
-            if step_idx % train_batch == 0:
+            if step_idx % TRAIN_BATCH == 0:
                 for param, grad in zip(net.parameters(),
                                         grad_buffer):
-                    param.grad = torch.FloatTensor(grad/train_batch).to(device)
+                    param.grad = torch.FloatTensor(grad/(TRAIN_BATCH*NUM_ENVS)).to(device)
                 optimizer.step()
                 grad_buffer = None
     finally:
@@ -185,11 +190,11 @@ if __name__=='__main__':
             p.terminate()
             p.join()
 
-    f_worker=AC.ActorCritic_Double_softmax_worker(w,maxnum_tasks,1,gamma,device,
-            clip_grad='max',beta=0,n_steps=4,mode='gce',labda=0.95,proc_name='finally')
+    f_worker=AC.ActorCritic_Double_softmax_worker(W,MAXNUM_TASKS,1,GAMMA,device,
+            clip_grad='max',beta=0,n_steps=0,mode='gce',labda=0.95,proc_name='finally')
     f_worker.agent=net
-    l1=model_test(env,f_worker,5,1)
+    l1=model_test(env_c,f_worker,5,1)
     print('next_agent##################################################')
-    r_agent=CS_ENV.RANDOM_AGENT(maxnum_tasks)
-    l2=model_test(env,r_agent,5,1)
+    r_agent=CS_ENV.RANDOM_AGENT(MAXNUM_TASKS)
+    l2=model_test(env_c,r_agent,5,1)
     print(l1,l2)
