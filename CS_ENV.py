@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from collections import OrderedDict,defaultdict
 
+EPS=1e-8
 rui=lambda u:(lambda:float(np.random.randint(u[0],u[1])))
 ruf=lambda u:(lambda:float(np.random.uniform(u[0],u[1])))
 
@@ -39,7 +40,7 @@ def floc_config():
     def generate(num_pros,maxnum_tasks):
         num_pro_choices=np.random.randint(1,num_pros+1,maxnum_tasks)
         loc=np.zeros((num_pros,maxnum_tasks),dtype='float')
-        loc[:]=1e-4
+        loc[:]=EPS
         for i in range(maxnum_tasks):
             num_pro_choice=num_pro_choices[i]
             pro_choice=np.random.choice(np.arange(num_pros,dtype='int'),num_pro_choice,False)
@@ -278,8 +279,7 @@ class RANDOM_AGENT:
         action[1]=np.random.permutation(np.arange(self.maxnum_tasks))
         sub_loc=state[0][0,0,:,-self.maxnum_tasks:]
         for j,col in enumerate(sub_loc.T):
-            if col.sum():
-                action[0][j]=np.random.choice(np.arange(len(col)),p=(col+1e-4)/((col+1e-4).sum()))
+            action[0][j]=np.random.choice(np.arange(len(col)),p=col/col.sum())
         return action
         
 if __name__=='__main__':

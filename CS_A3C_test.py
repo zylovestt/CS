@@ -10,17 +10,20 @@ import time
 import os
 
 LR=1e-4
-NUM_EPISODES=1000
+NUM_EPISODES=100
 MAX_STEPS=10
-NUM_PROCS=4
-NUM_ENVS=3
+NUM_PROCS=3
+NUM_ENVS=2
 QUEUE_SIZE=NUM_PROCS
 TRAIN_BATCH=2
-NUM_PROCESSORS=100
-MAXNUM_TASKS=10
+NUM_PROCESSORS=7
+MAXNUM_TASKS=3
 GAMMA = 0.99
 EPS=1e-8
-SEED=[i for i in range(10) for _ in range(20)]
+CYCLSES=10
+SEED=[i for i in range(5) for _ in range(10)]
+SEED.extend([i for _ in range(10) for i in range(5)])
+print(SEED)
 np.random.seed(1)
 torch.manual_seed(0)
 np.set_printoptions(2)
@@ -126,13 +129,15 @@ def data_func(proc_name,net, device, train_queue):
                 return_list.append(episode_return[i])
                 worker.writer.add_scalar(tag='return',scalar_value=episode_return[i],global_step=i_episode)
                 i_episode+=1
-                if (i_episode % 10 == 0):
-                    print('{}: speed:{}'.format(proc_name,frame_idx/(time.time()-ts_time)))
+                if (i_episode % CYCLSES == 0):
+                    s=frame_idx/(time.time()-ts_time)
+                    print('{}: speed:{}'.format(proc_name,s))
+                    worker.writer.add_scalar(tag='speed',scalar_value=s,global_step=i_episode)
                     frame_idx,ts_time=0,time.time()
-                    #test_reward=model_test(env,worker,1,1)
-                    #print('{}: episode:{} test_reward:{}'.format(proc_name,i_episode,test_reward))
-                    #worker.writer.add_scalar('test_reward',test_reward,i_episode)
-                    print('{}: episode:{} reward:{}'.format(proc_name,i_episode,np.mean(return_list[-10:])))
+                    test_reward=model_test(env,worker,5,seed=1)
+                    print('{}: episode:{} test_reward:{}'.format(proc_name,i_episode,test_reward))
+                    worker.writer.add_scalar('test_reward',test_reward,i_episode)
+                    print('{}: episode:{} reward:{}'.format(proc_name,i_episode,np.mean(return_list[-CYCLSES:])))
                 state[i] = env.reset()
                 done = False
                 episode_return[i] = 0
@@ -146,7 +151,7 @@ def data_func(proc_name,net, device, train_queue):
 
 if __name__=='__main__':
     mp.set_start_method('spawn',force=True)
-    os.environ['OMP_NUM_THREADS'] = "1"
+    os.environ['OMP_NUM_THREADS'] = '1'
     os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
     device = "cpu"
 
