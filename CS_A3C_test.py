@@ -140,9 +140,9 @@ def data_func(proc_name,net, device, train_queue,id):
                     print('{}: speed:{}'.format(proc_name,s))
                     worker.writer.add_scalar(tag='speed',scalar_value=s,global_step=i_episode)
                     frame_idx,ts_time=0,time.time()
-                    #test_reward=model_test(env,worker,1)
-                    #print('{}: episode:{} test_reward:{}'.format(proc_name,i_episode,test_reward))
-                    #worker.writer.add_scalar('test_reward',test_reward,i_episode)
+                    test_reward=model_test(env,worker,1)
+                    print('{}: episode:{} test_reward:{}'.format(proc_name,i_episode,test_reward))
+                    worker.writer.add_scalar('test_reward',test_reward,i_episode)
                     print('{}: episode:{} reward:{}'.format(proc_name,i_episode,np.mean(return_list[-CYCLSES:])))
                 state[i] = env.reset()
                 done = False
