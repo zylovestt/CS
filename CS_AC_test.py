@@ -9,7 +9,7 @@ from TEST import model_test
 np.random.seed(1)
 torch.manual_seed(0)
 lr = 1*1e-4
-num_episodes = 200
+num_episodes = 100
 gamma = 0.99
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 device = torch.device("cpu")

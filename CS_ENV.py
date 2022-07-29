@@ -179,7 +179,7 @@ class CSENV:
     name=0
     def __init__(self,pro_configs:list,maxnum_tasks:int,
         task_configs:list,job_config:dict,loc_config,
-        lams:dict,maxnum_episode:int,bases:dict,seed:list):
+        lams:dict,maxnum_episode:int,bases:dict,seed:list,test_seed:list):
         '''lams:Q,T,C,F'''
         self.name+=1
         self.pro_configs=pro_configs
@@ -206,6 +206,8 @@ class CSENV:
         self.train=True
         self.seed=seed
         self.seedid=0
+        self.test_seed=test_seed
+        self.test_id=0
     
     def send(self):
         self.tin,self.tasks,self.womiga,self.sigma=self.job()
@@ -243,17 +245,28 @@ class CSENV:
         self.sum_tar.append(t)
         self.sum_tarb.append(s)
     
-    def set_random_const_(self):
-        self.set_random_const=True
+    #def set_random_const_(self):
+    #    self.set_random_const=True
+
+    def set_test_mode(self):
+        self.train=False
+        self.test_id=0
+    
+    def set_train_mode(self):
+        self.train=True
 
     def reset(self):
         self.over=0
         self.done=0
         self.num_steps=0
-        np.random.seed(self.seed[self.seedid%len(self.seed)])
-        self.seedid+=1
-        if self.set_random_const:
-            np.random.seed(1)
+        if self.train:
+            np.random.seed(self.seed[self.seedid%len(self.seed)])
+            self.seedid+=1
+        else:
+            np.random.seed(self.test_seed[self.test_id%len(self.test_seed)])
+            self.test_id+=1
+        #if self.set_random_const:
+        #    np.random.seed(1)
         self.processor=PROCESSORS(self.pro_configs)
         self.job=JOB(self.maxnum_tasks,self.task_configs,self.job_config)
         return self.send()
@@ -263,7 +276,7 @@ class CSENV:
         if self.train:
             reward=self.sum_tarb[-1]
         else:
-            reward=self.sum_tar[-1]
+            reward=self.sum_tarb[-1]        #change
         self.num_steps+=1
         if self.num_steps>self.maxnum_episode:
             self.done=1

@@ -1,10 +1,11 @@
 import numpy as np
 
-def model_test(env,agent,num_episodes,seed):
-    env.train=False
+def model_test(env,agent,num_episodes):
+    #env.train=False
+    env.set_test_mode()
     return_list = []
     #num_subtasks=env.num_subtasks
-    np.random.seed(seed)
+    #np.random.seed(seed)
     for _ in range(num_episodes):
         episode_return = 0
         state = env.reset()
@@ -19,6 +20,6 @@ def model_test(env,agent,num_episodes,seed):
         return_list.append(episode_return)
         '''if (i+1)%cycles==0:
             print('episode:{}, reward:{}'.format(i+1,np.mean(return_list[-cycles])))'''
-    env.train=True
-    env.reset()
+    env.set_train_mode()
+    #env.reset()
     return np.mean(return_list)
