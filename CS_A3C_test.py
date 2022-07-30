@@ -12,7 +12,7 @@ import os
 np.random.seed(1)
 torch.manual_seed(0)
 LR=1e-4
-NUM_EPISODES=10
+NUM_EPISODES=20
 ENV_STEPS=100
 MAX_STEPS=10
 NUM_PROCS=4
@@ -30,8 +30,8 @@ TANH=True
 #SEED=[i for i in range(5) for _ in range(10)]
 #SEED.extend([i for _ in range(10) for i in range(5)])
 #SEED=[i for i in range(5) for _ in range(10)]
-TSEED=[np.random.randint(0,5) for _ in range(1000)]
-SEEDS=[[[np.random.randint(0,5) for _ in range(1000)] for _ in range(NUM_ENVS)] for _ in range(NUM_PROCS)]
+TSEED=[np.random.randint(0,1000) for _ in range(1000)]
+SEEDS=[[[np.random.randint(0,1000) for _ in range(1000)] for _ in range(NUM_ENVS)] for _ in range(NUM_PROCS)]
 #SEED=[1 for _ in range(1000)]
 #print('tseed:',TSEED)
 #print('seed:',SEEDS)
@@ -46,13 +46,13 @@ pro_dic['B']=(1,200)
 pro_dic['p']=(1,200)
 pro_dic['g']=(1,200)'''
 pro_dic['F']=(0.9,0.99)
-pro_dic['Q']=(0.7,1)
-pro_dic['er']=(10,20)
-pro_dic['econs']=(1,5)
-pro_dic['rcons']=(1,5)
-pro_dic['B']=(10,20)
-pro_dic['p']=(10,20)
-pro_dic['g']=(10,20)
+pro_dic['Q']=(0.9,1)
+pro_dic['er']=(19,20)
+pro_dic['econs']=(4,5)
+pro_dic['rcons']=(4,5)
+pro_dic['B']=(19,20)
+pro_dic['p']=(19,20)
+pro_dic['g']=(19,20)
 def fx():
     h=np.random.random()
     def g(x):
@@ -75,8 +75,8 @@ pro_dics=[CS_ENV.fpro_config(pro_dic) for _ in range(NUM_PROCESSORS)]
 task_dic={}
 '''task_dic['ez']=(1,200)
 task_dic['rz']=(1,200)'''
-task_dic['ez']=(10,20)
-task_dic['rz']=(10,20)
+task_dic['ez']=(1,20)
+task_dic['rz']=(1,20)
 task_dics=[CS_ENV.ftask_config(task_dic) for _ in range(MAXNUM_TASKS)]
 job_d={}
 job_d['time']=(1,9)

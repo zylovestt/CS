@@ -9,8 +9,8 @@ ruf=lambda u:(lambda:float(np.random.uniform(u[0],u[1])))
 
 def fpro_config(dic):
     config={}
-    i=['er','econs','rcons','B','p','g']
-    f=['F','Q','twe','ler']
+    i=[]
+    f=['F','Q','twe','ler','er','econs','rcons','B','p','g']
     for item in i:
         config[item]=rui(dic[item])
     for item in f:
@@ -23,9 +23,9 @@ def fpro_config(dic):
 
 def ftask_config(dic):
     config={}
-    i=['rz','ez']
-    for item in i:
-        config[item]=rui(dic[item])
+    f=['rz','ez']
+    for item in f:
+        config[item]=ruf(dic[item])
     return config
 
 def fjob_config(dic):

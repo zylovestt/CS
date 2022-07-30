@@ -9,7 +9,7 @@ from TEST import model_test
 np.random.seed(1)
 torch.manual_seed(0)
 lr = 1*1e-4
-num_episodes = 10
+num_episodes = 20
 gamma = 0.99
 num_pros=10
 maxnum_tasks=4
@@ -21,13 +21,13 @@ seed=[np.random.randint(0,5) for _ in range(20)]
 np.set_printoptions(2)
 pro_dic={}
 pro_dic['F']=(0.9,0.99)
-pro_dic['Q']=(0.7,1)
-pro_dic['er']=(10,20)
-pro_dic['econs']=(1,5)
-pro_dic['rcons']=(1,5)
-pro_dic['B']=(10,20)
-pro_dic['p']=(10,20)
-pro_dic['g']=(10,20)
+pro_dic['Q']=(0.9,1)
+pro_dic['er']=(0.5,1)
+pro_dic['econs']=(0.5,1)
+pro_dic['rcons']=(0.5,1)
+pro_dic['B']=(0.5,1)
+pro_dic['p']=(0.5,1)
+pro_dic['g']=(0.5,1)
 def fx():
     h=np.random.random()
     def g(x):
@@ -48,8 +48,8 @@ pro_dic['twe']=(0,0)
 pro_dic['ler']=(0,0)
 pro_dics=[CS_ENV.fpro_config(pro_dic) for _ in range(num_pros)]
 task_dic={}
-task_dic['ez']=(10,20)
-task_dic['rz']=(10,20)
+task_dic['ez']=(0.5,1)
+task_dic['rz']=(0.5,1)
 task_dics=[CS_ENV.ftask_config(task_dic) for _ in range(maxnum_tasks)]
 job_d={}
 job_d['time']=(1,9)
