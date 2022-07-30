@@ -191,7 +191,7 @@ class ActorCritic_Double_softmax:
         self.writer=SummaryWriter(comment='AC')
         self.step=0
         #self.agent=AGENT_NET.DoubleNet_softmax(input_shape,num_subtasks).to(device)
-        self.agent=AGENT_NET.DoubleNet_softmax_simple2(input_shape,num_subtasks).to(device)
+        self.agent=AGENT_NET.DoubleNet_softmax_simple(input_shape,num_subtasks).to(device)
         #self.agent_optimizer=torch.optim.Adam(self.agent.parameters(),lr=lr,eps=1e-3)
         #self.agent_optimizer=torch.optim.SGD(self.agent.parameters(),lr=lr,momentum=0.9)
         self.agent_optimizer=torch.optim.NAdam(self.agent.parameters(),lr=lr,eps=eps)
@@ -296,7 +296,7 @@ class ActorCritic_Double_softmax:
         self.cri_loss.append(critic_loss.item())
         agent_loss=epo_loss+actor_loss+self.weights*critic_loss
         self.agent_loss.append(agent_loss.item())
-        if torch.isnan(agent_loss)>0:
+        if torch.isnan(agent_loss) or torch.isinf(agent_loss)>0:
             print("agent_loss_here!")
         if self.local_update:
             self.agent_optimizer.zero_grad()
@@ -334,7 +334,7 @@ class ActorCritic_Double_softmax:
                 for param in self.agent.parameters()]
         return grads
     
-    def calculate_probs(self,out_puts,actions):
+    def calculate_probs0(self,out_puts,actions):
         out_puts=tuple([FU.softmax(x,dim=1) for x in out_puts[i]] for i in range(2))
         probs=1
         for i in range(self.num_subtasks):
@@ -353,6 +353,28 @@ class ActorCritic_Double_softmax:
                 -torch.gather(out_puts[1][i],1,actions[1][:,:i]).sum(axis=1,keepdim=True)+1e-7)*G(i+1)
             if i<self.num_subtasks else 1.0)
         probs*=G(0)'''
+        return probs
+
+    def calculate_probs(self,out_puts_orginal,actions):
+        out_puts=tuple([FU.softmax(x,dim=1) for x in out_puts_orginal[i]] for i in range(2))
+        probs=1
+        for i in range(self.num_subtasks):
+            t=torch.gather(out_puts[0][i],1,actions[0][:,[i]])
+            for k,tt in enumerate(t):
+                if tt.item()==0:
+                    print(k,':prob_sub is zero')
+            probs*=t
+        for i in range(self.num_subtasks-1):
+            t=torch.gather(out_puts[1][i],1,actions[1][:,[i]])
+            u=out_puts[1][i].sum(axis=1,keepdim=True)
+            s=torch.gather(out_puts[1][i],1,actions[1][:,:i]).sum(axis=1,keepdim=True)
+            for k,tt in enumerate(t):
+                if tt.item()==0:
+                    print(k,':prob_prior_fz is zero')
+            for k,tt in enumerate(u-s):
+                if tt.item()==0:
+                    print(k,':prob_prior_fm is zero')
+            probs*=t/(u-s)
         return probs
 
     def cal_nsteps(self,rewards,states,next_states,overs):
@@ -408,6 +430,7 @@ class ActorCritic_Double_softmax_worker:
         self.agent_loss=[]
         self.ac_loss=[]
         self.local_update=True
+        self.agent=None
     
     def set_nolocal_update(self):
         self.local_update=False
@@ -532,20 +555,20 @@ class ActorCritic_Double_softmax_worker:
         probs=1
         for i in range(self.num_subtasks):
             t=torch.gather(out_puts[0][i],1,actions[0][:,[i]])
-            for tt in t:
+            for k,tt in enumerate(t):
                 if tt.item()==0:
-                    print('prob_sub is zero')
+                    print(k,':prob_sub is zero')
             probs*=t
         for i in range(self.num_subtasks-1):
             t=torch.gather(out_puts[1][i],1,actions[1][:,[i]])
             u=out_puts[1][i].sum(axis=1,keepdim=True)
             s=torch.gather(out_puts[1][i],1,actions[1][:,:i]).sum(axis=1,keepdim=True)
-            for tt in t:
+            for k,tt in enumerate(t):
                 if tt.item()==0:
-                    print('prob_prior_fz is zero')
-            for tt in (u-s):
+                    print(k,':prob_prior_fz is zero')
+            for k,tt in enumerate(u-s):
                 if tt.item()==0:
-                    print('prob_prior_fm is zero')
+                    print(k,':prob_prior_fm is zero')
             probs*=t/(u-s)
         return probs
 

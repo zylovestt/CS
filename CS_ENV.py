@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from collections import OrderedDict,defaultdict
 
-EPS=1e-8
+EPS=1e-14
 rui=lambda u:(lambda:float(np.random.randint(u[0],u[1])))
 ruf=lambda u:(lambda:float(np.random.uniform(u[0],u[1])))
 
@@ -179,7 +179,7 @@ class CSENV:
     name=0
     def __init__(self,pro_configs:list,maxnum_tasks:int,
         task_configs:list,job_config:dict,loc_config,
-        lams:dict,maxnum_episode:int,bases:dict,seed:list,test_seed:list):
+        lams:dict,maxnum_episode:int,bases:dict,bases_fm:dict,seed:list,test_seed:list):
         '''lams:Q,T,C,F'''
         self.name+=1
         self.pro_configs=pro_configs
@@ -190,6 +190,7 @@ class CSENV:
         self.num_pros=len(pro_configs)
         self.lams=lams
         self.bases=bases
+        self.bases_fm=bases_fm
         self.tar_dic,self.tarb_dic={},{}
         self.tar_dic['Q']=[]
         self.tar_dic['T']=[]
@@ -239,7 +240,7 @@ class CSENV:
         for k,value in self.tar_dic.items():
             value.append(R[k])
             t+=self.lams[k]*R[k]
-            r=(self.bases[k]-R[k])/self.bases[k]
+            r=(self.bases[k]-R[k])/self.bases_fm[k]
             self.tarb_dic[k+'b'].append(r)
             s+=self.lams[k]*r
         self.sum_tar.append(t)
