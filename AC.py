@@ -509,7 +509,7 @@ class ActorCritic_Double_softmax_worker:
         if self.beta:
             agent_loss+=epo_loss
         self.agent_loss.append(agent_loss.item())
-        if torch.isnan(agent_loss) or torch.isinf(agent_loss)>0:
+        if torch.isnan(agent_loss)>0 or torch.isinf(agent_loss)>0:
             print("agent_loss_here!")
         if self.local_update:
             self.agent_optimizer.zero_grad()

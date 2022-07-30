@@ -9,25 +9,25 @@ from TEST import model_test
 np.random.seed(1)
 torch.manual_seed(0)
 lr = 1*1e-4
-num_episodes = 20
+num_episodes = 10
 gamma = 0.99
 num_pros=10
 maxnum_tasks=4
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 device = torch.device("cpu")
-tseed=[np.random.randint(0,1000) for _ in range(1000)]
-seed=[i for i in range(10) for _ in range(20)]
+tseed=[np.random.randint(0,5) for _ in range(1000)]
+seed=[np.random.randint(0,5) for _ in range(20)]
 '''F,Q,er,econs,rcons,B,p,g,d,w,alpha,twe,ler'''
 np.set_printoptions(2)
 pro_dic={}
 pro_dic['F']=(0.9,0.99)
 pro_dic['Q']=(0.7,1)
-pro_dic['er']=(10,200)
-pro_dic['econs']=(1,50)
-pro_dic['rcons']=(1,50)
-pro_dic['B']=(10,200)
-pro_dic['p']=(10,200)
-pro_dic['g']=(10,200)
+pro_dic['er']=(10,20)
+pro_dic['econs']=(1,5)
+pro_dic['rcons']=(1,5)
+pro_dic['B']=(10,20)
+pro_dic['p']=(10,20)
+pro_dic['g']=(10,20)
 def fx():
     h=np.random.random()
     def g(x):
@@ -48,8 +48,8 @@ pro_dic['twe']=(0,0)
 pro_dic['ler']=(0,0)
 pro_dics=[CS_ENV.fpro_config(pro_dic) for _ in range(num_pros)]
 task_dic={}
-task_dic['ez']=(10,200)
-task_dic['rz']=(10,200)
+task_dic['ez']=(10,20)
+task_dic['rz']=(10,20)
 task_dics=[CS_ENV.ftask_config(task_dic) for _ in range(maxnum_tasks)]
 job_d={}
 job_d['time']=(1,9)
@@ -98,7 +98,7 @@ bases_fm=env_c.bases_fm
 model_test(env_c,r_agent,1)
 
 agent=AC.ActorCritic_Double_softmax(W,maxnum_tasks,lr,1,gamma,device,
-    clip_grad=1e-2,beta=1e-2,n_steps=4,mode='gce',labda=0.95,eps=1e-5)
+    clip_grad='max',beta=1e-2,n_steps=4,mode='gce',labda=0.95,eps=1e-5)
 rl_utils.train_on_policy_agent(env_c,agent,num_episodes,10,10)
 torch.save(agent.agent.state_dict(), "./data/CS_AC_model_parameter.pkl")
 agent.writer.close()

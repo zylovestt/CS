@@ -63,7 +63,7 @@ def train_on_policy_agent(env, agent, num_episodes,max_steps,cycles):
             return_list.append(episode_return)
             writer.add_scalar(tag='return',scalar_value=episode_return,global_step=i_episode)
             i_episode+=1
-            if (i_episode % cycles == 0):
+            if i_episode % cycles == 0:
                 print('speed:{}'.format(frame_idx/(time.time()-ts_time)))
                 frame_idx,ts_time=0,time.time()
                 #test_reward=model_test(env,agent,1,1)

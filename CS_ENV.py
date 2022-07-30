@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from collections import OrderedDict,defaultdict
 
-EPS=1e-14
+EPS=1e-8
 rui=lambda u:(lambda:float(np.random.randint(u[0],u[1])))
 ruf=lambda u:(lambda:float(np.random.uniform(u[0],u[1])))
 

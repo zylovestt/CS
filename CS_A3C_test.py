@@ -12,25 +12,26 @@ import os
 np.random.seed(1)
 torch.manual_seed(0)
 LR=1e-4
-NUM_EPISODES=50
+NUM_EPISODES=10
 ENV_STEPS=100
 MAX_STEPS=10
-NUM_PROCS=2
-NUM_ENVS=2
+NUM_PROCS=4
+NUM_ENVS=1
 QUEUE_SIZE=NUM_PROCS
 TRAIN_BATCH=1
 NUM_PROCESSORS=10
 MAXNUM_TASKS=4
+BATCH_SIZE=1
 GAMMA=0.99
 EPS=1e-8
-CYCLSES=100
-DEVICE = "cpu"
+CYCLSES=10
+DEVICE="cpu"
 TANH=True
 #SEED=[i for i in range(5) for _ in range(10)]
 #SEED.extend([i for _ in range(10) for i in range(5)])
 #SEED=[i for i in range(5) for _ in range(10)]
-TSEED=[np.random.randint(0,1000) for _ in range(1000)]
-SEEDS=[[[np.random.randint(0,1000) for _ in range(10)] for _ in range(NUM_ENVS)] for _ in range(NUM_PROCS)]
+TSEED=[np.random.randint(0,5) for _ in range(1000)]
+SEEDS=[[[np.random.randint(0,5) for _ in range(1000)] for _ in range(NUM_ENVS)] for _ in range(NUM_PROCS)]
 #SEED=[1 for _ in range(1000)]
 #print('tseed:',TSEED)
 #print('seed:',SEEDS)
@@ -46,12 +47,12 @@ pro_dic['p']=(1,200)
 pro_dic['g']=(1,200)'''
 pro_dic['F']=(0.9,0.99)
 pro_dic['Q']=(0.7,1)
-pro_dic['er']=(10,200)
-pro_dic['econs']=(1,50)
-pro_dic['rcons']=(1,50)
-pro_dic['B']=(10,200)
-pro_dic['p']=(10,200)
-pro_dic['g']=(10,200)
+pro_dic['er']=(10,20)
+pro_dic['econs']=(1,5)
+pro_dic['rcons']=(1,5)
+pro_dic['B']=(10,20)
+pro_dic['p']=(10,20)
+pro_dic['g']=(10,20)
 def fx():
     h=np.random.random()
     def g(x):
@@ -74,8 +75,8 @@ pro_dics=[CS_ENV.fpro_config(pro_dic) for _ in range(NUM_PROCESSORS)]
 task_dic={}
 '''task_dic['ez']=(1,200)
 task_dic['rz']=(1,200)'''
-task_dic['ez']=(10,200)
-task_dic['rz']=(10,200)
+task_dic['ez']=(10,20)
+task_dic['rz']=(10,20)
 task_dics=[CS_ENV.ftask_config(task_dic) for _ in range(MAXNUM_TASKS)]
 job_d={}
 job_d['time']=(1,9)
@@ -119,7 +120,7 @@ def data_func(proc_name,net,train_queue,id):
 
     '''input_shape,num_subtasks,weights,gamma,device,clip_grad,beta,n_steps,mode,labda,proc_name'''
     worker=AC.ActorCritic_Double_softmax_worker(W,MAXNUM_TASKS,1,GAMMA,DEVICE,
-        clip_grad='max',beta=1e-2,n_steps=0,mode='gce',labda=0.95,proc_name=proc_name)
+        clip_grad=1e-2,beta=1e-2,n_steps=0,mode='gce',labda=0.95,proc_name=proc_name)
 
     worker.agent=net
     envs=[f_env(i) for i in range(NUM_ENVS)]
@@ -134,8 +135,8 @@ def data_func(proc_name,net,train_queue,id):
     episode_return=[0 for _ in range(NUM_ENVS)]
     return_list=[]
     i_episode=0
+    grads_l=[]
     while i_episode<NUM_EPISODES:
-        grads_l=[]
         for i,env in enumerate(envs):
             transition_dict = {'states': [], 'actions': [], 'next_states': [], 'rewards': [], 'dones': [], 'overs': []}
             step=0
@@ -156,7 +157,7 @@ def data_func(proc_name,net,train_queue,id):
                 return_list.append(episode_return[i])
                 worker.writer.add_scalar(tag='return',scalar_value=episode_return[i],global_step=i_episode)
                 i_episode+=1
-                if (i_episode % CYCLSES == 0):
+                if i_episode%CYCLSES==0:
                     s=frame_idx/(time.time()-ts_time)
                     print('{}: speed:{}'.format(proc_name,s))
                     worker.writer.add_scalar(tag='speed',scalar_value=s,global_step=i_episode)
@@ -169,10 +170,12 @@ def data_func(proc_name,net,train_queue,id):
                 done = False
                 episode_return[i] = 0
             grads_l.append(worker.update(transition_dict))
-        for k in range(1,NUM_ENVS):
-            for grad0,gradk in zip(grads_l[0],grads_l[k]):
-                grad0+=gradk
-        train_queue.put(grads_l[0])
+        if i_episode%BATCH_SIZE==0:
+            for k in range(1,len(grads_l)):
+                for grad0,gradk in zip(grads_l[0],grads_l[k]):
+                    grad0+=gradk
+            train_queue.put(grads_l[0])
+            grads_l.clear()
     worker.writer.close()
     train_queue.put(None)
 
@@ -218,7 +221,7 @@ if __name__=='__main__':
             if step_idx % TRAIN_BATCH == 0:
                 for param, grad in zip(net.parameters(),
                                         grad_buffer):
-                    param.grad = torch.FloatTensor(grad/(TRAIN_BATCH*NUM_ENVS)).to(DEVICE)
+                    param.grad = torch.FloatTensor(grad/(TRAIN_BATCH*NUM_ENVS*BATCH_SIZE)).to(DEVICE)
                 optimizer.step()
                 grad_buffer = None
     finally:
@@ -227,7 +230,7 @@ if __name__=='__main__':
             p.join()
 
     f_worker=AC.ActorCritic_Double_softmax_worker(W,MAXNUM_TASKS,1,GAMMA,DEVICE,
-            clip_grad='max',beta=0,n_steps=0,mode='gce',labda=0.95,proc_name='finally')
+            clip_grad=1e-2,beta=0,n_steps=0,mode='gce',labda=0.95,proc_name='finally')
     f_worker.agent=net
     l1=model_test(env_c,f_worker,10)
     print('next_agent'+'#'*60)
