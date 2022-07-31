@@ -187,15 +187,16 @@ class ActorCritic_Double:
         return self.cal_(r,0,self.gamma*self.labda)
 
 class ActorCritic_Double_softmax:
-    def __init__(self,input_shape:tuple,num_subtasks,lr,weights,gamma,device,clip_grad,beta,n_steps,mode,labda,eps):
+    def __init__(self,input_shape:tuple,num_subtasks,lr,weights,gamma,device,clip_grad,beta,n_steps,mode,labda,eps,tanh):
         self.writer=SummaryWriter(comment='AC')
         self.step=0
         #self.agent=AGENT_NET.DoubleNet_softmax(input_shape,num_subtasks).to(device)
-        self.agent=AGENT_NET.DoubleNet_softmax_simple(input_shape,num_subtasks).to(device)
+        self.agent=AGENT_NET.DoubleNet_softmax_simple(input_shape,num_subtasks,tanh).to(device)
+        #self.agent=AGENT_NET.DoubleNet_softmax_simple_fc(input_shape,num_subtasks).to(device)
+        #self.agent=AGENT_NET.DoubleNet_softmax(input_shape,num_subtasks).to(device)
         #self.agent_optimizer=torch.optim.Adam(self.agent.parameters(),lr=lr,eps=1e-3)
         #self.agent_optimizer=torch.optim.SGD(self.agent.parameters(),lr=lr,momentum=0.9)
         self.agent_optimizer=torch.optim.NAdam(self.agent.parameters(),lr=lr,eps=eps)
-        #self.input_shape=input_shape
         self.num_processors=input_shape[0][2]
         self.num_subtasks=num_subtasks
         self.gamma=gamma
@@ -227,13 +228,10 @@ class ActorCritic_Double_softmax:
         for i in state[1]:
             i[:]=(i-i.mean())/i.std()
         (probs_subtasks_orginal,probs_prior_orginal),_=self.agent(state)
-        '''probs_subtasks_orginal*=[x*y
-            for x,y in zip(probs_subtasks_orginal,state[0][0,0,:,-self.num_subtasks:].T)]'''
+
         action_subtasks=[]
         for x in probs_subtasks_orginal:
             action_subtasks.append(torch.distributions.Categorical(logits=x).sample().item())
-        '''action_subtasks=[torch.distributions.Categorical(x).sample().item()
-            for x in probs_subtasks_orginal]'''
 
         action_prior=[]
         probs_prior_orginal=torch.cat(probs_prior_orginal,0)
@@ -333,27 +331,6 @@ class ActorCritic_Double_softmax:
                 if param.grad is not None else None
                 for param in self.agent.parameters()]
         return grads
-    
-    def calculate_probs0(self,out_puts,actions):
-        out_puts=tuple([FU.softmax(x,dim=1) for x in out_puts[i]] for i in range(2))
-        probs=1
-        for i in range(self.num_subtasks):
-            t=torch.gather(out_puts[0][i],1,actions[0][:,[i]])
-            probs*=t
-        '''F=lambda i:torch.gather(out_puts[0][i],1,actions[0][:,[i]])*F(i+1)\
-            if i<self.num_subtasks else 1.0
-        probs=F(0)'''
-        for i in range(self.num_subtasks-1):
-            t=torch.gather(out_puts[1][i],1,actions[1][:,[i]])
-            u=out_puts[1][i].sum(axis=1,keepdim=True)
-            s=torch.gather(out_puts[1][i],1,actions[1][:,:i]).sum(axis=1,keepdim=True)
-            probs*=t/(u-s)
-        '''G=lambda i:((torch.gather(out_puts[1][i],1,actions[1][:,[i]])+1e-7)
-            /(out_puts[1][i].sum(axis=1,keepdim=True)
-                -torch.gather(out_puts[1][i],1,actions[1][:,:i]).sum(axis=1,keepdim=True)+1e-7)*G(i+1)
-            if i<self.num_subtasks else 1.0)
-        probs*=G(0)'''
-        return probs
 
     def calculate_probs(self,out_puts_orginal,actions):
         out_puts=tuple([FU.softmax(x,dim=1) for x in out_puts_orginal[i]] for i in range(2))

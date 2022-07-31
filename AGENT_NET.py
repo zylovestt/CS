@@ -176,9 +176,9 @@ class DoubleNet_softmax(nn.Module):
             nn.init.constant_(m.weight, 1)
             nn.init.constant_(m.bias, 0)
 
-class DoubleNet_softmax_simple2(nn.Module):
+class DoubleNet_softmax_simple_fc(nn.Module):
     def __init__(self,input_shape,num_subtasks):
-        super(DoubleNet_softmax_simple2,self).__init__()
+        super(DoubleNet_softmax_simple_fc,self).__init__()
         self.num_processors=input_shape[0][2]
         self.num_attributes=input_shape[0][-1]
         self.num_subtasks=num_subtasks
@@ -260,7 +260,7 @@ class DoubleNet_softmax_simple(nn.Module):
         self.num_processors=input_shape[0][2]
         self.num_attributes=input_shape[0][-1]
         self.num_subtasks=num_subtasks
-        hs=192
+        hs=256
         self.base_row=nn.Conv2d(1,hs,kernel_size=(1,input_shape[0][-1]),stride=1)
         self.base_col=nn.Conv2d(1,hs,kernel_size=(input_shape[0][2],1),stride=1)
         #self.base_all=nn.Conv2d(1,3*hs,kernel_size=(input_shape[0][2],input_shape[0][-1]),stride=1)
@@ -282,9 +282,9 @@ class DoubleNet_softmax_simple(nn.Module):
                 nn.PReLU(),
                 nn.Linear(x,hs),
                 nn.PReLU(),
-                nn.Linear(hs,hs),
+                nn.Linear(x,hs),
                 nn.PReLU(),
-                nn.Linear(hs,hs),
+                nn.Linear(x,hs),
                 nn.PReLU(),
                 nn.Linear(hs,y),
                 nn.Tanh())
@@ -293,9 +293,9 @@ class DoubleNet_softmax_simple(nn.Module):
                 nn.PReLU(),
                 nn.Linear(x,hs),
                 nn.PReLU(),
-                nn.Linear(hs,hs),
+                nn.Linear(x,hs),
                 nn.PReLU(),
-                nn.Linear(hs,hs),
+                nn.Linear(x,hs),
                 nn.PReLU(),
                 nn.Linear(hs,y))
         self.critic_out=nn.Sequential(
@@ -304,7 +304,7 @@ class DoubleNet_softmax_simple(nn.Module):
             nn.PReLU(),
             nn.Linear(hs,hs),
             nn.PReLU(),
-            nn.Tanh())
+            nn.Linear(hs,1))
         #self.policy_layer=nn.ModuleList([F(hs+self.num_processors,input_shape[0][2]) for _ in range(num_subtasks)])
         self.policy_layer=nn.ModuleList([F(hs,input_shape[0][2]) for _ in range(num_subtasks)])
         self.prior_layer=nn.ModuleList([F(hs,num_subtasks) for _ in range(num_subtasks-1)])

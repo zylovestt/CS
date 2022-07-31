@@ -6,13 +6,14 @@ from collections import OrderedDict,defaultdict
 EPS=1e-8
 rui=lambda u:(lambda:float(np.random.randint(u[0],u[1])))
 ruf=lambda u:(lambda:float(np.random.uniform(u[0],u[1])))
+PRO_STATE_NAMES=['er', 'econs', 'rcons', 'B', 'p', 'g', 'twe', 'ler', 'w', 'alpha','PF','Aq', 'x', 'y', 'vx','vy']
 
 def fpro_config(dic):
     config={}
-    i=[]
-    f=['F','Q','twe','ler','er','econs','rcons','B','p','g']
+    i=['er','econs','rcons','B','p','g']
+    f=['F','Q','twe','ler']
     for item in i:
-        config[item]=rui(dic[item])
+        config[item]=ruf(dic[item]) #change
     for item in f:
         config[item]=ruf(dic[item])
     config['w']=float(dic['w'])
@@ -177,9 +178,8 @@ class JOB:
 
 class CSENV:
     name=0
-    def __init__(self,pro_configs:list,maxnum_tasks:int,
-        task_configs:list,job_config:dict,loc_config,
-        lams:dict,maxnum_episode:int,bases:dict,bases_fm:dict,seed:list,test_seed:list):
+    def __init__(self,pro_configs:list,maxnum_tasks:int,task_configs:list,job_config:dict,loc_config,
+        lams:dict,maxnum_episode:int,bases:dict,bases_fm:dict,seed:list,test_seed:list,reset_states=False):
         '''lams:Q,T,C,F'''
         self.name+=1
         self.pro_configs=pro_configs
@@ -209,21 +209,29 @@ class CSENV:
         self.seedid=0
         self.test_seed=test_seed
         self.test_id=0
+        self.processors=PROCESSORS(self.pro_configs)
+        self.job=JOB(self.maxnum_tasks,self.task_configs,self.job_config)
+        self.reset_states=reset_states
     
     def send(self):
         self.tin,self.tasks,self.womiga,self.sigma=self.job()
         '''for i,rz in enumerate(self.tasks['rz']):
             if not rz:
                 break'''
-        task_loc=self.loc_config(self.processor.num_pros,self.job.maxnum_tasks)
+        task_loc=self.loc_config(self.processors.num_pros,self.job.maxnum_tasks)
         self.task_loc=task_loc
         pro_status=[]
-        for pro in self.processor.pros:
-            items=[value for k,value in pro.pro_dic.items() if not callable(value) and not k=='F']
+        if self.reset_states:
+            names=['er', 'econs', 'rcons', 'B', 'p', 'g', 'twe', 'ler', 'w', 'alpha']
+        else:
+            names=['twe', 'ler']
+        for pro in self.processors.pros:
+            #items=[value for k,value in pro.pro_dic.items() if not callable(value) and not k=='F']
+            items=[pro.pro_dic[key] for key in names]
             items.extend([pro.PF,pro.Aq,pro.pro_dic['x'](self.job.tin),pro.pro_dic['y'](self.job.tin)])
             items.extend(pro.cal_v(self.job.tin,10))
             pro_status.append(items)
-        pro_status=np.concatenate((np.array(pro_status),task_loc),1).reshape(1,1,self.processor.num_pros,-1)
+        pro_status=np.concatenate((np.array(pro_status),task_loc),1).reshape(1,1,self.processors.num_pros,-1)
         task_status=[]
         for item in self.tasks.values():
             task_status.extend(item)
@@ -235,7 +243,7 @@ class CSENV:
         choice_prob=np.prod(self.task_loc[action[0],range(self.maxnum_tasks)])
         if choice_prob<0.5:
             print(str(self.name)+' wrong_choice')
-        R=self.processor(self.tin,self.tasks,action,self.womiga,self.sigma)
+        R=self.processors(self.tin,self.tasks,action,self.womiga,self.sigma)
         t,s=0,0
         for k,value in self.tar_dic.items():
             value.append(R[k])
@@ -245,9 +253,6 @@ class CSENV:
             s+=self.lams[k]*r
         self.sum_tar.append(t)
         self.sum_tarb.append(s)
-    
-    #def set_random_const_(self):
-    #    self.set_random_const=True
 
     def set_test_mode(self):
         self.train=False
@@ -256,7 +261,7 @@ class CSENV:
     def set_train_mode(self):
         self.train=True
 
-    def reset(self):
+    '''def reset0(self):
         self.over=0
         self.done=0
         self.num_steps=0
@@ -266,10 +271,36 @@ class CSENV:
         else:
             np.random.seed(self.test_seed[self.test_id%len(self.test_seed)])
             self.test_id+=1
-        #if self.set_random_const:
-        #    np.random.seed(1)
-        self.processor=PROCESSORS(self.pro_configs)
+        self.processors=PROCESSORS(self.pro_configs)
         self.job=JOB(self.maxnum_tasks,self.task_configs,self.job_config)
+        return self.send()'''
+
+    def reset(self):
+        self.over=0
+        self.done=0
+        self.num_steps=0
+        if not self.train:
+            np.random.seed(self.seed[self.seedid%len(self.seed)])
+            self.seedid+=1
+        else:
+            np.random.seed(self.test_seed[self.test_id%len(self.test_seed)])
+            self.test_id+=1
+        if self.reset_states:
+            self.processors=PROCESSORS(self.pro_configs)
+            self.job=JOB(self.maxnum_tasks,self.task_configs,self.job_config)
+        else:
+            self.job.job_index=0
+            self.job.tin=0
+            for pro in self.processors.pros:
+                pro.Exe=0
+                pro.UExe=0
+                pro.cal_PF()
+                pro.sum_Aq=0
+                pro.Nk=0
+                pro.cal_Aq()
+                pro.t=0
+                pro.pro_dic['twe']=0
+                pro.pro_dic['ler']=0
         return self.send()
     
     def step(self,action:np.ndarray):
@@ -292,10 +323,54 @@ class RANDOM_AGENT:
         action=np.zeros((2,self.maxnum_tasks),dtype='int')
         action[1]=np.random.permutation(np.arange(self.maxnum_tasks))
         sub_loc=state[0][0,0,:,-self.maxnum_tasks:]
+        num_pros=sub_loc.shape[0]
         for j,col in enumerate(sub_loc.T):
-            action[0][j]=np.random.choice(np.arange(len(col)),p=col/col.sum())
+            action[0][j]=np.random.choice(np.arange(num_pros),p=col/col.sum())
         return action
-        
+
+class OTHER_AGENT:
+    def __init__(self,choice,maxnum_tasks):
+        self.choice=choice
+        self.maxnum_tasks=maxnum_tasks
+    
+    def take_action(self,state):
+        action=np.zeros((2,self.maxnum_tasks),dtype='int')
+        action[1]=np.random.permutation(np.arange(self.maxnum_tasks))
+        sub_loc=state[0][0,0,:,-self.maxnum_tasks:]
+        pro_status=state[0][0,0,:,:-self.maxnum_tasks]
+        action[0]=self.choice(sub_loc,pro_status)
+        return action
+
+def random_choice(sub_loc,_):
+    num_pros=sub_loc.shape[0]
+    return [np.random.choice(np.arange(num_pros),p=col/col.sum()) for col in sub_loc.T]
+
+def short_twe_choice(sub_loc,pro_status):
+    num_pros=sub_loc.shape[0]
+    num_tasks=sub_loc.shape[1]
+    l_pros=[(i,pro_status[i,PRO_STATE_NAMES.index('twe')]+pro_status[i,PRO_STATE_NAMES.index('ler')]) for i in range(num_pros)]
+    l_pros.sort(key=lambda x:x[1])
+    l_pros_index=[x[0] for x in l_pros]
+    act=[-1 for _ in range(num_tasks)]
+    task_visited=[0 for _ in range(num_tasks)]
+    i=j=k=count=0
+    while count<num_tasks:
+        while task_visited[j]:
+            j=(j+1)%num_tasks
+        pro=l_pros_index[i]
+        if sub_loc[pro,j]==1:
+            count+=1
+            act[j]=pro
+            task_visited[j]=1
+            i=(i+1)%num_pros
+            k=0
+        j=(j+1)%num_tasks
+        k+=1
+        if k>num_tasks-count:
+            i=(i+1)%num_pros
+            k=0
+    return act
+    
 if __name__=='__main__':
     '''F,Q,er,econs,rcons,B,p,g,d,w,alpha,twe,ler'''
     #np.random.seed(1)
@@ -344,7 +419,7 @@ if __name__=='__main__':
     z=['Q','T','C','F']
     lams={x:1 for x in z}
     bases={x:1 for x in z}
-    job_pros=CSENV(pro_dics,maxnum_tasks,task_dics,job_dic,loc_config,lams,100,bases)
+    job_pros=CSENV(pro_dics,maxnum_tasks,task_dics,job_dic,loc_config,lams,100,bases,bases,[7],[9])
     state=job_pros.reset()
     A=state[0].reshape(num_pros,-1)
     A=np.around(A,2)
