@@ -9,12 +9,16 @@ from TEST import model_test
 np.random.seed(1)
 torch.manual_seed(0)
 lr = 1*1e-4
-num_episodes = 20
+num_episodes = 100
 gamma = 0.98
-num_pros=100
-maxnum_tasks=10
+num_pros=5
+maxnum_tasks=5
+env_steps=500
+max_steps=50
+tanh=False
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 device = torch.device("cpu")
+iseed=1
 tseed=[np.random.randint(0,1000) for _ in range(1000)]
 seed=[np.random.randint(0,1000) for _ in range(1000)]
 '''F,Q,er,econs,rcons,B,p,g,d,w,alpha,twe,ler'''
@@ -58,20 +62,6 @@ job_d['sigma']=(0.5,1)
 job_d['num']=(1,maxnum_tasks)
 job_dic=CS_ENV.fjob_config(job_d)
 loc_config=CS_ENV.floc_config()
-'''z=['Q','T','C','F']
-lams={}
-lams['T']=1*1e-2
-lams['Q']=-1*1e-2
-lams['F']=-1*1e-2
-lams['C']=1*1e-2
-bases={x:1 for x in z}
-bases['T']=15
-bases['Q']=1
-bases['C']=10
-env=CS_ENV.CSENV(pro_dics,maxnum_tasks,task_dics,
-    job_dic,loc_config,lams,100,bases,seed,seed)
-state=env.reset()
-w=(state[0].shape,state[1].shape)'''
 z=['Q','T','C','F']
 lams={}
 lams['T']=1*1e-1
@@ -79,12 +69,15 @@ lams['Q']=-1*1e-1
 lams['F']=-1*1e-1
 lams['C']=1*1e-1
 bases={x:1 for x in z}
+
 env_c=CS_ENV.CSENV(pro_dics,maxnum_tasks,task_dics,
-        job_dic,loc_config,lams,100,bases,bases,seed,tseed,reset_states=False)
+        job_dic,loc_config,lams,env_steps,bases,bases,seed,tseed,reset_states=False,cut_states=True,init_seed=iseed)
+    
 state=env_c.reset()
 W=(state[0].shape,state[1].shape)
 r_agent=CS_ENV.RANDOM_AGENT(maxnum_tasks)
-model_test(env_c,r_agent,1)
+model_test(env_c,r_agent,10)
+
 for key in env_c.bases:
     env_c.tar_dic[key].sort()
     g=np.array(env_c.tar_dic[key],dtype='float32')
@@ -95,18 +88,21 @@ for key in env_c.bases:
     env_c.tar_dic[key]=[]
     env_c.tarb_dic[key+'b']=[]
 bases_fm=env_c.bases_fm
-model_test(env_c,r_agent,1)
 
 agent=AC.ActorCritic_Double_softmax(W,maxnum_tasks,lr,1,gamma,device,
-    clip_grad=1e-1,beta=1e-1,n_steps=4,mode='gce',labda=0.95,eps=1e-8,tanh=False)
-rl_utils.train_on_policy_agent(env_c,agent,num_episodes,50,10)
-torch.save(agent.agent.state_dict(), "./data/CS_AC_model_parameter.pkl")
-agent.writer.close()
-tl_0=model_test(env_c,agent,10)
-print('#'*20)
-r_agent=CS_ENV.OTHER_AGENT(CS_ENV.random_choice,maxnum_tasks)
-tl_1=model_test(env_c,r_agent,10)
-print('#'*20)
-s_agent=CS_ENV.OTHER_AGENT(CS_ENV.short_twe_choice,maxnum_tasks)
-tl_2=model_test(env_c,s_agent,10)
-print('agent_choice:{},r_choice:{},short_wait_choice:{}'.format(tl_0,tl_1,tl_2))
+    clip_grad=1e-1,beta=1e-1,n_steps=0,mode='gce',labda=0.95,eps=1e-8,tanh=tanh)
+agent.agent.load_state_dict(torch.load("./data/CS_AC_model_parameter.pkl"))
+if __name__=='__main__':
+    rl_utils.train_on_policy_agent(env_c,agent,num_episodes,max_steps,10)
+    torch.save(agent.agent.state_dict(), "./data/CS_AC_model_parameter.pkl")
+    agent.writer.close()
+    tl_0=model_test(env_c,agent,1)
+    print('#'*20)
+
+    env_c.cut_states=False
+    r_agent=CS_ENV.OTHER_AGENT(CS_ENV.random_choice,maxnum_tasks)
+    tl_1=model_test(env_c,r_agent,1)
+    print('#'*20)
+    s_agent=CS_ENV.OTHER_AGENT(CS_ENV.short_twe_choice,maxnum_tasks)
+    tl_2=model_test(env_c,s_agent,1)
+    print('agent_choice:{},r_choice:{},short_wait_choice:{}'.format(tl_0,tl_1,tl_2))

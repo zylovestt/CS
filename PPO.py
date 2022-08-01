@@ -134,7 +134,7 @@ class PPO_softmax:
     def __init__(self,input_shape:tuple,num_subtasks,lr,weights,gamma,device,clip_grad,lmbda,epochs,eps):
         self.writer=SummaryWriter(comment='PPO')
         self.step=0
-        self.agent=AGENT_NET.DoubleNet_softmax(input_shape,num_subtasks).to(device)
+        self.agent=AGENT_NET.DoubleNet_softmax_simple(input_shape,num_subtasks).to(device)
         self.agent_optimizer=torch.optim.NAdam(self.agent.parameters(),lr=lr,eps=1e-8)
         self.input_shape=input_shape
         self.num_processors=input_shape[0]

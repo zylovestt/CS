@@ -12,47 +12,34 @@ import os
 np.random.seed(1)
 torch.manual_seed(0)
 LR=1e-4
-NUM_EPISODES=30
-ENV_STEPS=100
+NUM_EPISODES=20
+ENV_STEPS=500
 MAX_STEPS=50
 NUM_PROCS=4
-NUM_ENVS=1
+NUM_ENVS=2
 QUEUE_SIZE=NUM_PROCS
 TRAIN_BATCH=1
-NUM_PROCESSORS=10
-MAXNUM_TASKS=4
+NUM_PROCESSORS=5
+MAXNUM_TASKS=5
 BATCH_SIZE=1
-GAMMA=0.99
+GAMMA=0.98
 EPS=1e-8
 CYCLSES=10
 DEVICE="cpu"
-TANH=True
-#SEED=[i for i in range(5) for _ in range(10)]
-#SEED.extend([i for _ in range(10) for i in range(5)])
-#SEED=[i for i in range(5) for _ in range(10)]
+TANH=False
+ISEED=1
 TSEED=[np.random.randint(0,1000) for _ in range(1000)]
-SEEDS=[[[np.random.randint(0,1000) for _ in range(200)] for _ in range(NUM_ENVS)] for _ in range(NUM_PROCS)]
-#SEED=[1 for _ in range(1000)]
-#print('tseed:',TSEED)
-#print('seed:',SEEDS)
+SEEDS=[[[np.random.randint(0,1000) for _ in range(1000)] for _ in range(NUM_ENVS)] for _ in range(NUM_PROCS)]
 np.set_printoptions(2)
 pro_dic={}
-'''pro_dic['F']=(0.9,0.99)
-pro_dic['Q']=(0.7,1)
-pro_dic['er']=(1,200)
-pro_dic['econs']=(1,10)
-pro_dic['rcons']=(1,10)
-pro_dic['B']=(1,200)
-pro_dic['p']=(1,200)
-pro_dic['g']=(1,200)'''
-pro_dic['F']=(0.9,0.9)
-pro_dic['Q']=(0.9,0.9)
-pro_dic['er']=(0.9,0.9)
-pro_dic['econs']=(0.9,0.9)
-pro_dic['rcons']=(0.9,0.9)
-pro_dic['B']=(0.9,0.9)
-pro_dic['p']=(0.9,0.9)
-pro_dic['g']=(0.9,0.9)
+pro_dic['F']=(0.7,0.99)
+pro_dic['Q']=(0.7,0.99)
+pro_dic['er']=(0.1,9)
+pro_dic['econs']=(0.1,0.9)
+pro_dic['rcons']=(0.1,0.9)
+pro_dic['B']=(0.1,0.9)
+pro_dic['p']=(0.1,0.9)
+pro_dic['g']=(0.1,0.9)
 def fx():
     h=np.random.random()
     def g(x):
@@ -73,13 +60,11 @@ pro_dic['twe']=(0,0)
 pro_dic['ler']=(0,0)
 pro_dics=[CS_ENV.fpro_config(pro_dic) for _ in range(NUM_PROCESSORS)]
 task_dic={}
-'''task_dic['ez']=(1,200)
-task_dic['rz']=(1,200)'''
 task_dic['ez']=(0.5,1)
 task_dic['rz']=(0.5,1)
 task_dics=[CS_ENV.ftask_config(task_dic) for _ in range(MAXNUM_TASKS)]
 job_d={}
-job_d['time']=(1,9)
+job_d['time']=(1,1)
 job_d['womiga']=(0.5,1)
 job_d['sigma']=(0.5,1)
 job_d['num']=(1,MAXNUM_TASKS)
@@ -92,12 +77,15 @@ lams['Q']=-1*1e-1
 lams['F']=-1*1e-1
 lams['C']=1*1e-1
 bases={x:1 for x in z}
+
 env_c=CS_ENV.CSENV(pro_dics,MAXNUM_TASKS,task_dics,
-        job_dic,loc_config,lams,ENV_STEPS,bases,bases,SEEDS[0],TSEED)
+        job_dic,loc_config,lams,ENV_STEPS,bases,bases,SEEDS[0][0],TSEED,reset_states=False,cut_states=True,init_seed=ISEED)
+#print('1env_c',env_c.processors.pros[0].pro_dic['p'])
 state=env_c.reset()
 W=(state[0].shape,state[1].shape)
-r_agent=CS_ENV.RANDOM_AGENT(MAXNUM_TASKS)
-model_test(env_c,r_agent,1)
+r_agent=CS_ENV.OTHER_AGENT(CS_ENV.random_choice,MAXNUM_TASKS)
+model_test(env_c,r_agent,10)
+
 for key in env_c.bases:
     env_c.tar_dic[key].sort()
     g=np.array(env_c.tar_dic[key],dtype='float32')
@@ -108,25 +96,28 @@ for key in env_c.bases:
     env_c.tar_dic[key]=[]
     env_c.tarb_dic[key+'b']=[]
 bases_fm=env_c.bases_fm
-model_test(env_c,r_agent,1)
+#print('2env_c',env_c.processors.pros[0].pro_dic['p'])
+f_worker=AC.ActorCritic_Double_softmax_worker(W,MAXNUM_TASKS,1,GAMMA,DEVICE,
+            clip_grad=1e-1,beta=1e-1,n_steps=0,mode='gce',labda=0.95,proc_name='finally')
 
 def data_func(proc_name,net,train_queue,id):
+    np.random.seed(1)
+    torch.manual_seed(0)
     '''F,Q,er,econs,rcons,B,p,g,d,w,alpha,twe,ler'''
     frame_idx=0
     ts_time=time.time()
 
     f_env=lambda x:CS_ENV.CSENV(pro_dics,MAXNUM_TASKS,task_dics,
-        job_dic,loc_config,lams,ENV_STEPS,bases,bases_fm,SEEDS[id][x],TSEED)
+        job_dic,loc_config,lams,ENV_STEPS,bases,bases_fm,SEEDS[id][x],TSEED,False,True,ISEED)
 
     '''input_shape,num_subtasks,weights,gamma,device,clip_grad,beta,n_steps,mode,labda,proc_name'''
     worker=AC.ActorCritic_Double_softmax_worker(W,MAXNUM_TASKS,1,GAMMA,DEVICE,
-        clip_grad='max',beta=0,n_steps=0,mode='gce',labda=0.95,proc_name=proc_name)
+        clip_grad=1e-1,beta=1e-1,n_steps=0,mode='gce',labda=0.95,proc_name=proc_name)
 
     worker.agent=net
     envs=[f_env(i) for i in range(NUM_ENVS)]
     for i,env in enumerate(envs):
         env.name=proc_name+' '+str(i)
-        #env.set_random_const_()
 
     worker.set_nolocal_update()
 
@@ -189,6 +180,7 @@ if __name__=='__main__':
     train_queue=mp.Queue(QUEUE_SIZE)
     #net=AGENT_NET.DoubleNet_softmax(W,MAXNUM_TASKS).to(DEVICE)
     net=AGENT_NET.DoubleNet_softmax_simple(W,MAXNUM_TASKS,TANH).to(DEVICE)
+    net.load_state_dict(torch.load("./data/CS_A3C_model_parameter.pkl"))
     net.share_memory()
     optimizer=torch.optim.NAdam(net.parameters(),lr=LR,eps=EPS)
     
@@ -224,20 +216,25 @@ if __name__=='__main__':
                     param.grad = torch.FloatTensor(grad/(TRAIN_BATCH*NUM_ENVS*BATCH_SIZE)).to(DEVICE)
                 optimizer.step()
                 grad_buffer = None
+            if step_idx%100==0:
+                torch.save(net.state_dict(), "./data/CS_A3C_model_parameter.pkl")
     finally:
         for p in data_proc_list:
             p.terminate()
             p.join()
 
-    f_worker=AC.ActorCritic_Double_softmax_worker(W,MAXNUM_TASKS,1,GAMMA,DEVICE,
-            clip_grad=1e-2,beta=0,n_steps=0,mode='gce',labda=0.95,proc_name='finally')
     f_worker.agent=net
-    tl_0=model_test(env_c,f_worker,50)
+    tl_0=model_test(env_c,f_worker,1)
     print('#'*20)
+
+    env_c.cut_states=False
+    #print('3env_c',env_c.processors.pros[0].pro_dic['p'])
     r_agent=CS_ENV.OTHER_AGENT(CS_ENV.random_choice,MAXNUM_TASKS)
-    tl_1=model_test(env_c,r_agent,50)
+    tl_1=model_test(env_c,r_agent,10)
     print('#'*20)
     s_agent=CS_ENV.OTHER_AGENT(CS_ENV.short_twe_choice,MAXNUM_TASKS)
-    tl_2=model_test(env_c,s_agent,50)
+    tl_2=model_test(env_c,s_agent,10)
     print('agent_choice:{},r_choice:{},short_wait_choice:{}'.format(tl_0,tl_1,tl_2))
     torch.save(net.state_dict(), "./data/CS_A3C_model_parameter.pkl")
+    np.random.seed(1)
+    print(np.random.randint(1,10))

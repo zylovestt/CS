@@ -179,8 +179,9 @@ class JOB:
 class CSENV:
     name=0
     def __init__(self,pro_configs:list,maxnum_tasks:int,task_configs:list,job_config:dict,loc_config,
-        lams:dict,maxnum_episode:int,bases:dict,bases_fm:dict,seed:list,test_seed:list,reset_states=False):
+        lams:dict,maxnum_episode:int,bases:dict,bases_fm:dict,seed:list,test_seed:list,reset_states=False,cut_states=True,init_seed=1):
         '''lams:Q,T,C,F'''
+        np.random.seed(init_seed)
         self.name+=1
         self.pro_configs=pro_configs
         self.task_configs=task_configs
@@ -212,6 +213,7 @@ class CSENV:
         self.processors=PROCESSORS(self.pro_configs)
         self.job=JOB(self.maxnum_tasks,self.task_configs,self.job_config)
         self.reset_states=reset_states
+        self.cut_states=cut_states
     
     def send(self):
         self.tin,self.tasks,self.womiga,self.sigma=self.job()
@@ -221,7 +223,7 @@ class CSENV:
         task_loc=self.loc_config(self.processors.num_pros,self.job.maxnum_tasks)
         self.task_loc=task_loc
         pro_status=[]
-        if self.reset_states:
+        if not self.cut_states:
             names=['er', 'econs', 'rcons', 'B', 'p', 'g', 'twe', 'ler', 'w', 'alpha']
         else:
             names=['twe', 'ler']
@@ -279,7 +281,7 @@ class CSENV:
         self.over=0
         self.done=0
         self.num_steps=0
-        if not self.train:
+        if self.train:
             np.random.seed(self.seed[self.seedid%len(self.seed)])
             self.seedid+=1
         else:
