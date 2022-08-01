@@ -9,7 +9,7 @@ from TEST import model_test
 np.random.seed(1)
 torch.manual_seed(0)
 lr = 1*1e-4
-num_episodes = 100
+num_episodes = 10
 gamma = 0.98
 num_pros=5
 maxnum_tasks=5
@@ -91,18 +91,18 @@ bases_fm=env_c.bases_fm
 
 agent=AC.ActorCritic_Double_softmax(W,maxnum_tasks,lr,1,gamma,device,
     clip_grad=1e-1,beta=1e-1,n_steps=0,mode='gce',labda=0.95,eps=1e-8,tanh=tanh)
-agent.agent.load_state_dict(torch.load("./data/CS_AC_model_parameter.pkl"))
+#agent.agent.load_state_dict(torch.load("./data/CS_AC_model_parameter.pkl"))
 if __name__=='__main__':
     rl_utils.train_on_policy_agent(env_c,agent,num_episodes,max_steps,10)
     torch.save(agent.agent.state_dict(), "./data/CS_AC_model_parameter.pkl")
     agent.writer.close()
-    tl_0=model_test(env_c,agent,1)
+    tl_0=model_test(env_c,agent,10)
     print('#'*20)
 
     env_c.cut_states=False
     r_agent=CS_ENV.OTHER_AGENT(CS_ENV.random_choice,maxnum_tasks)
-    tl_1=model_test(env_c,r_agent,1)
+    tl_1=model_test(env_c,r_agent,10)
     print('#'*20)
     s_agent=CS_ENV.OTHER_AGENT(CS_ENV.short_twe_choice,maxnum_tasks)
-    tl_2=model_test(env_c,s_agent,1)
+    tl_2=model_test(env_c,s_agent,10)
     print('agent_choice:{},r_choice:{},short_wait_choice:{}'.format(tl_0,tl_1,tl_2))

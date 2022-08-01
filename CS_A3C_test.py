@@ -12,12 +12,12 @@ import os
 np.random.seed(1)
 torch.manual_seed(0)
 LR=1e-4
-NUM_EPISODES=20
+NUM_EPISODES=10
 ENV_STEPS=500
 MAX_STEPS=50
-NUM_PROCS=4
-NUM_ENVS=2
-QUEUE_SIZE=NUM_PROCS
+NUM_PROCESSINGS=2
+NUM_ENVS=1
+QUEUE_SIZE=NUM_PROCESSINGS
 TRAIN_BATCH=1
 NUM_PROCESSORS=5
 MAXNUM_TASKS=5
@@ -29,12 +29,12 @@ DEVICE="cpu"
 TANH=False
 ISEED=1
 TSEED=[np.random.randint(0,1000) for _ in range(1000)]
-SEEDS=[[[np.random.randint(0,1000) for _ in range(1000)] for _ in range(NUM_ENVS)] for _ in range(NUM_PROCS)]
+SEEDS=[[[np.random.randint(0,1000) for _ in range(1000)] for _ in range(NUM_ENVS)] for _ in range(NUM_PROCESSINGS)]
 np.set_printoptions(2)
 pro_dic={}
 pro_dic['F']=(0.7,0.99)
 pro_dic['Q']=(0.7,0.99)
-pro_dic['er']=(0.1,9)
+pro_dic['er']=(0.1,0.9)
 pro_dic['econs']=(0.1,0.9)
 pro_dic['rcons']=(0.1,0.9)
 pro_dic['B']=(0.1,0.9)
@@ -180,12 +180,12 @@ if __name__=='__main__':
     train_queue=mp.Queue(QUEUE_SIZE)
     #net=AGENT_NET.DoubleNet_softmax(W,MAXNUM_TASKS).to(DEVICE)
     net=AGENT_NET.DoubleNet_softmax_simple(W,MAXNUM_TASKS,TANH).to(DEVICE)
-    net.load_state_dict(torch.load("./data/CS_A3C_model_parameter.pkl"))
+    #net.load_state_dict(torch.load("./data/CS_A3C_model_parameter.pkl"))
     net.share_memory()
     optimizer=torch.optim.NAdam(net.parameters(),lr=LR,eps=EPS)
     
     data_proc_list = []
-    for proc_idx in range(NUM_PROCS):
+    for proc_idx in range(NUM_PROCESSINGS):
         args=(str(proc_idx), net, train_queue,proc_idx)
         p = mp.Process(target=data_func,args=args)
         p.start()
