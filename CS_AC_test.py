@@ -11,8 +11,8 @@ torch.manual_seed(0)
 lr = 1*1e-4
 num_episodes = 10
 gamma = 0.98
-num_pros=5
-maxnum_tasks=5
+num_pros=10
+maxnum_tasks=10
 env_steps=500
 max_steps=50
 tanh=False
