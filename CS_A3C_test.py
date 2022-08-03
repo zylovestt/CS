@@ -26,7 +26,7 @@ GAMMA=0.98
 EPS=1e-8
 CYCLSES=10
 DEVICE="cpu"
-TANH=False
+TANH=True
 ISEED=1
 TSEED=[np.random.randint(0,1000) for _ in range(1000)]
 SEEDS=[[[np.random.randint(0,1000) for _ in range(1000)] for _ in range(NUM_ENVS)] for _ in range(NUM_PROCESSINGS)]
@@ -97,9 +97,9 @@ for key in env_c.bases:
     env_c.tarb_dic[key+'b']=[]
 bases_fm=env_c.bases_fm
 #print('2env_c',env_c.processors.pros[0].pro_dic['p'])
-f_worker=AC.ActorCritic_Double_softmax_worker(W,MAXNUM_TASKS,1,GAMMA,DEVICE,
-            clip_grad=1e-1,beta=1e-1,n_steps=0,mode='gce',labda=0.95,proc_name='finally')
-
+f_worker=AC.ActorCritic_Double_softmax(W,MAXNUM_TASKS,1,GAMMA,DEVICE,
+            clip_grad='max',beta=1e-1,n_steps=0,mode='gce',labda=0.95,proc_name='finally')
+            
 def data_func(proc_name,net,train_queue,id):
     np.random.seed(1)
     torch.manual_seed(0)
@@ -111,15 +111,14 @@ def data_func(proc_name,net,train_queue,id):
         job_dic,loc_config,lams,ENV_STEPS,bases,bases_fm,SEEDS[id][x],TSEED,False,True,ISEED)
 
     '''input_shape,num_subtasks,weights,gamma,device,clip_grad,beta,n_steps,mode,labda,proc_name'''
-    worker=AC.ActorCritic_Double_softmax_worker(W,MAXNUM_TASKS,1,GAMMA,DEVICE,
-        clip_grad=1e-1,beta=1e-1,n_steps=0,mode='gce',labda=0.95,proc_name=proc_name)
+    worker=AC.ActorCritic_Double_softmax(W,MAXNUM_TASKS,1,GAMMA,DEVICE,
+        clip_grad='max',beta=1e-1,n_steps=0,mode='gce',labda=0.95,proc_name=proc_name)
 
     worker.agent=net
     envs=[f_env(i) for i in range(NUM_ENVS)]
     for i,env in enumerate(envs):
         env.name=proc_name+' '+str(i)
 
-    worker.set_nolocal_update()
 
     done=False
     state=[env.reset() for env in envs]

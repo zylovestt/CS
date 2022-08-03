@@ -9,8 +9,8 @@ from TEST import model_test
 
 np.random.seed(1)
 torch.manual_seed(0)
-lr = 1*1e-4
-num_episodes = 3
+lr = 1e-4
+num_episodes = 20
 gamma = 0.98
 num_pros=10
 maxnum_tasks=10
@@ -56,7 +56,7 @@ task_dic['ez']=(0.5,1)
 task_dic['rz']=(0.5,1)
 task_dics=[CS_ENV.ftask_config(task_dic) for _ in range(maxnum_tasks)]
 job_d={}
-job_d['time']=(0.1,1)
+job_d['time']=(1,1)
 job_d['womiga']=(0.5,1)
 job_d['sigma']=(0.5,1)
 job_d['num']=(1,maxnum_tasks)
@@ -93,10 +93,10 @@ lmbda = 0.95
 epochs = 3
 eps = 0.2
 
-agent = PPO.PPO_softmax(W,maxnum_tasks, lr,1,  gamma, device,'max',lmbda,epochs, eps)
-
+agent = PPO.PPO_softmax(W,maxnum_tasks, lr,1,  gamma, device,'max',lmbda,epochs, eps,1e-4,True)
+#agent.agent.load_state_dict(torch.load("./data/CS_PPO_model_parameter.pkl"))
 if __name__=='__main__':
-    return_list = rl_utils.train_on_policy_agent(env_c, agent, num_episodes,10,10)
+    return_list = rl_utils.train_on_policy_agent(env_c, agent, num_episodes,max_steps,10)
     torch.save(agent.agent.state_dict(), "./data/CS_PPO_model_parameter.pkl")
     agent.writer.close()
     tl_0=model_test(env_c,agent,10)

@@ -5,6 +5,7 @@ import AC
 import torch
 import rl_utils
 from TEST import model_test
+import AGENT_NET
 
 np.random.seed(1)
 torch.manual_seed(0)
@@ -15,7 +16,7 @@ num_pros=10
 maxnum_tasks=10
 env_steps=500
 max_steps=50
-tanh=False
+tanh=True
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 device = torch.device("cpu")
 iseed=1
@@ -89,8 +90,14 @@ for key in env_c.bases:
     env_c.tarb_dic[key+'b']=[]
 bases_fm=env_c.bases_fm
 
-agent=AC.ActorCritic_Double_softmax(W,maxnum_tasks,lr,1,gamma,device,
-    clip_grad=1e-1,beta=1e-1,n_steps=0,mode='gce',labda=0.95,eps=1e-8,tanh=tanh)
+
+net=AGENT_NET.DoubleNet_softmax_simple(W,maxnum_tasks,tanh).to(device)
+optim=torch.optim.NAdam(net.parameters(),lr=lr,eps=1e-8)
+'''input_shape,num_subtasks,weights,gamma,device,clip_grad,beta,n_steps,mode,labda,proc_name,optimizer=None,net=None'''
+agent=AC.ActorCritic_Double_softmax(W,maxnum_tasks,1,gamma,device,
+    clip_grad='max',beta=1e-1,n_steps=0,mode='gce',labda=0.95,proc_name='-1',optimizer=optim,net=net)
+'''agent=AC.ActorCritic_Double_softmax0(W,maxnum_tasks,lr,1,gamma,device,
+    clip_grad=1e-1,beta=1e-1,n_steps=0,mode='gce',labda=0.95,eps=1e-8,tanh=tanh)'''
 #agent.agent.load_state_dict(torch.load("./data/CS_AC_model_parameter.pkl"))
 if __name__=='__main__':
     rl_utils.train_on_policy_agent(env_c,agent,num_episodes,max_steps,10)
