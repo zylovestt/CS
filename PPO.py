@@ -297,11 +297,11 @@ class PPO_softmax0:
 
 class PPO_softmax:
     ''' PPO算法,采用截断方式 '''
-    def __init__(self,input_shape:tuple,num_subtasks,lr,weights,gamma,device,clip_grad,lmbda,epochs,eps,beta,tanh):
+    def __init__(self,input_shape:tuple,num_subtasks,weights,gamma,device,clip_grad,lmbda,epochs,eps,beta,net,optim):
         self.writer=SummaryWriter(comment='PPO')
         self.step=0
-        self.agent=AGENT_NET.DoubleNet_softmax_simple(input_shape,num_subtasks,tanh).to(device)
-        self.agent_optimizer=torch.optim.NAdam(self.agent.parameters(),lr=lr,eps=1e-8)
+        self.agent=net
+        self.agent_optimizer=optim
         self.input_shape=input_shape
         self.num_processors=input_shape[0]
         self.num_subtasks=num_subtasks
@@ -367,6 +367,7 @@ class PPO_softmax:
         td_delta = td_target - temp[:-1]
         advantage = rl_utils.compute_advantage(self.gamma, self.lmbda,
                                                td_delta.cpu()).to(self.device)
+        #advantage=(advantage-advantage.mean())/advantage.std()
         #td_target=advantage.view(-1,1)+temp[:-1]                                               
         old_log_probs = self.calculate_probs_log(self.agent(states)[0],actions).detach()
 

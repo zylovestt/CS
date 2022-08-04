@@ -312,7 +312,7 @@ class CSENV:
         else:
             reward=self.sum_tarb[-1]        #change
         self.num_steps+=1
-        if self.num_steps>self.maxnum_episode:
+        if self.num_steps>=self.maxnum_episode:
             self.done=1
             print(str(self.name)+' done')
         return self.send(),reward,self.done,self.over,None

@@ -30,7 +30,7 @@ def moving_average(a, window_size):
     end = (np.cumsum(a[:-window_size:-1])[::2] / r)[::-1]
     return np.concatenate((begin, middle, end))
 
-def train_on_policy_agent(env, agent, num_episodes,max_steps,cycles):
+def train_on_policy_agent(env, agent, num_episodes,max_steps,cycles,T_cycles=torch.inf,T_max=0):
     writer=agent.writer
     frame_idx=0
     ts_time=time.time()
@@ -39,18 +39,16 @@ def train_on_policy_agent(env, agent, num_episodes,max_steps,cycles):
     state = env.reset()
     episode_return = 0
     i_episode=0
+    k=0
     while i_episode < num_episodes:
         transition_dict = {'states': [], 'actions': [], 'next_states': [], 'rewards': [], 'dones': [], 'overs': []}
         step=0
-        #print('NEW START')
+        k+=1
         while not done and step<max_steps:
             step+=1
             frame_idx+=1
             action = agent.take_action(state)
-            #print_state(env.env_agent)
-            #print('action: \n',action)
             next_state, reward, done, over, _ = env.step(action)
-            #print('reward: ',reward)
             transition_dict['states'].append(state)
             transition_dict['actions'].append(action)
             transition_dict['next_states'].append(next_state)
@@ -66,14 +64,16 @@ def train_on_policy_agent(env, agent, num_episodes,max_steps,cycles):
             if i_episode % cycles == 0:
                 print('speed:{}'.format(frame_idx/(time.time()-ts_time)))
                 frame_idx,ts_time=0,time.time()
-                #test_reward=model_test(env,agent,1,1)
-                #print('episode:{}, test_reward:{}'.format(i_episode,test_reward))
-                #writer.add_scalar('test_reward',test_reward,i_episode)
+                test_reward=model_test(env,agent,1)
+                print('episode:{}, test_reward:{}'.format(i_episode,test_reward))
+                writer.add_scalar('test_reward',test_reward,i_episode)
                 print('episode:{}, reward:{}'.format(i_episode,np.mean(return_list[-cycles:])))
             state = env.reset()
             done = False
             episode_return = 0
         agent.update(transition_dict)
+        if k%T_cycles==0 and max_steps<=T_max:
+            max_steps+=1
     writer.close()
     return return_list
 

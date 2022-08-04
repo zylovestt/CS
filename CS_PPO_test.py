@@ -6,21 +6,22 @@ from matplotlib import pyplot as plt
 import PPO
 import math
 from TEST import model_test
+import AGENT_NET
 
 np.random.seed(1)
 torch.manual_seed(0)
 lr = 1e-4
-num_episodes = 20
+num_episodes = 1
 gamma = 0.98
-num_pros=10
+num_pros=100
 maxnum_tasks=10
-env_steps=500
-max_steps=50
-tanh=False
+env_steps=1000
+max_steps=1
+tanh=True
 device = torch.device("cpu")
 iseed=1
-tseed=[np.random.randint(0,1000) for _ in range(1000)]
-seed=[np.random.randint(0,1000) for _ in range(1000)]
+tseed=[np.random.randint(0,1) for _ in range(1000)]
+seed=[np.random.randint(0,1) for _ in range(1000)]
 '''F,Q,er,econs,rcons,B,p,g,d,w,alpha,twe,ler'''
 np.set_printoptions(2)
 pro_dic={}
@@ -76,7 +77,7 @@ env_c=CS_ENV.CSENV(pro_dics,maxnum_tasks,task_dics,
 state=env_c.reset()
 W=(state[0].shape,state[1].shape)
 r_agent=CS_ENV.RANDOM_AGENT(maxnum_tasks)
-model_test(env_c,r_agent,10)
+model_test(env_c,r_agent,1)
 
 for key in env_c.bases:
     env_c.tar_dic[key].sort()
@@ -93,18 +94,22 @@ lmbda = 0.95
 epochs = 3
 eps = 0.2
 
-agent = PPO.PPO_softmax(W,maxnum_tasks, lr,1,  gamma, device,'max',lmbda,epochs, eps,1e-4,True)
-#agent.agent.load_state_dict(torch.load("./data/CS_PPO_model_parameter.pkl"))
+net=AGENT_NET.DoubleNet_softmax_simple(W,maxnum_tasks,tanh).to(device)
+#net.load_state_dict(torch.load("./data/CS_PPO_model_parameter.pkl"))
+optim=torch.optim.NAdam(net.parameters(),lr=lr,eps=1e-8)
+agent = PPO.PPO_softmax(W,maxnum_tasks,1,  gamma, device,'max',lmbda,epochs, eps,1e-4,net,optim)
+
 if __name__=='__main__':
-    return_list = rl_utils.train_on_policy_agent(env_c, agent, num_episodes,max_steps,10)
+    return_list = rl_utils.train_on_policy_agent(env_c, agent, num_episodes,max_steps,cycles=10,T_cycles=10,T_max=16)
     torch.save(agent.agent.state_dict(), "./data/CS_PPO_model_parameter.pkl")
     agent.writer.close()
-    tl_0=model_test(env_c,agent,10)
+    #tl_0=model_test(env_c,agent,10)
+    tl_0=return_list[0]
     print('#'*20)
     env_c.cut_states=False
     r_agent=CS_ENV.OTHER_AGENT(CS_ENV.random_choice,maxnum_tasks)
-    tl_1=model_test(env_c,r_agent,10)
+    tl_1=model_test(env_c,r_agent,1)
     print('#'*20)
     s_agent=CS_ENV.OTHER_AGENT(CS_ENV.short_twe_choice,maxnum_tasks)
-    tl_2=model_test(env_c,s_agent,10)
+    tl_2=model_test(env_c,s_agent,1)
     print('agent_choice:{},r_choice:{},short_wait_choice:{}'.format(tl_0,tl_1,tl_2))
