@@ -72,8 +72,9 @@ def train_on_policy_agent(env, agent, num_episodes,max_steps,cycles,T_cycles=tor
             done = False
             episode_return = 0
         agent.update(transition_dict)
-        if k%T_cycles==0 and max_steps<=T_max:
+        if k%T_cycles==0 and max_steps<T_max:
             max_steps+=1
+        print('env_steps:{}'.format(env.num_steps))
     writer.close()
     return return_list
 

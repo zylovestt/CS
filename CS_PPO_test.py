@@ -13,15 +13,16 @@ torch.manual_seed(0)
 lr = 1e-4
 num_episodes = 1
 gamma = 0.98
-num_pros=100
-maxnum_tasks=10
+num_pros=5
+maxnum_tasks=5
 env_steps=1000
-max_steps=1
+max_steps=2
 tanh=True
 device = torch.device("cpu")
-iseed=1
-tseed=[np.random.randint(0,1) for _ in range(1000)]
-seed=[np.random.randint(0,1) for _ in range(1000)]
+iseed=0
+#tseed=[np.random.randint(0,1000) for _ in range(1000)]
+seed=[np.random.randint(0,1000) for _ in range(1000)]
+tseed=seed
 '''F,Q,er,econs,rcons,B,p,g,d,w,alpha,twe,ler'''
 np.set_printoptions(2)
 pro_dic={}
@@ -72,7 +73,7 @@ lams['C']=1*1e-1
 bases={x:1 for x in z}
 
 env_c=CS_ENV.CSENV(pro_dics,maxnum_tasks,task_dics,
-        job_dic,loc_config,lams,env_steps,bases,bases,seed,tseed,reset_states=False,cut_states=True,init_seed=iseed)
+        job_dic,loc_config,lams,env_steps,bases,bases,seed,tseed,reset_states=False,cut_states=True,init_seed=iseed,reset_step=False)
     
 state=env_c.reset()
 W=(state[0].shape,state[1].shape)
@@ -100,10 +101,12 @@ optim=torch.optim.NAdam(net.parameters(),lr=lr,eps=1e-8)
 agent = PPO.PPO_softmax(W,maxnum_tasks,1,  gamma, device,'max',lmbda,epochs, eps,1e-4,net,optim)
 
 if __name__=='__main__':
-    return_list = rl_utils.train_on_policy_agent(env_c, agent, num_episodes,max_steps,cycles=10,T_cycles=10,T_max=16)
+    return_list = rl_utils.train_on_policy_agent(env_c, agent, num_episodes,max_steps,cycles=10,T_cycles=20,T_max=5)
     torch.save(agent.agent.state_dict(), "./data/CS_PPO_model_parameter.pkl")
     agent.writer.close()
-    #tl_0=model_test(env_c,agent,10)
+
+    #env_c.reset_step=False
+    #tl_0=model_test(env_c,agent,1)
     tl_0=return_list[0]
     print('#'*20)
     env_c.cut_states=False

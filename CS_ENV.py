@@ -179,7 +179,7 @@ class JOB:
 class CSENV:
     name=0
     def __init__(self,pro_configs:list,maxnum_tasks:int,task_configs:list,job_config:dict,loc_config,
-        lams:dict,maxnum_episode:int,bases:dict,bases_fm:dict,seed:list,test_seed:list,reset_states=False,cut_states=True,init_seed=1):
+        lams:dict,maxnum_episode:int,bases:dict,bases_fm:dict,seed:list,test_seed:list,reset_states=False,cut_states=True,init_seed=1,reset_step=False):
         '''lams:Q,T,C,F'''
         np.random.seed(init_seed)
         self.name+=1
@@ -214,6 +214,7 @@ class CSENV:
         self.job=JOB(self.maxnum_tasks,self.task_configs,self.job_config)
         self.reset_states=reset_states
         self.cut_states=cut_states
+        self.reset_step=reset_step
     
     def send(self):
         self.tin,self.tasks,self.womiga,self.sigma=self.job()
@@ -315,6 +316,11 @@ class CSENV:
         if self.num_steps>=self.maxnum_episode:
             self.done=1
             print(str(self.name)+' done')
+        if self.reset_step:
+            l=['er','econs','rcons','B','p','g']
+            for pro,pro_conf in zip(self.processors.pros,self.pro_configs):
+                for key in l:
+                    pro.pro_dic[key]=pro_conf[key]()
         return self.send(),reward,self.done,self.over,None
 
 class RANDOM_AGENT:
