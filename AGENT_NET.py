@@ -356,7 +356,7 @@ class DoubleNet_softmax_simple(nn.Module):
         self.num_attributes=input_shape[0][-1]
         self.num_subtasks=num_subtasks
         self.depart=depart
-        hs=256
+        hs=512
         self.base_row_p=nn.Conv2d(1,hs,kernel_size=(1,input_shape[0][-1]),stride=1)
         self.base_col_p=nn.Conv2d(1,hs,kernel_size=(input_shape[0][2],1),stride=1)
 
